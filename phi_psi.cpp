@@ -16,16 +16,30 @@ double psi(double xi[][n], double xj[][n], direction dir) {
 	*/
 	double sigma = 1.0;
 	double distance = 0;
-	for (int i = 0; i < n; i++) {
-		switch(dir) {
-			case NORTH : distance += pow(xi[0][i] - xj[n-1][i], 2); break;
-			case SOUTH : distance += pow(xi[n-1][i] - xj[0][i], 2); break;
-			case WEST : distance += pow(xi[i][0] - xj[i][n-1], 2); break;
-			case EAST : distance += pow(xi[i][n-1] - xj[i][0], 2); break;
-		}
+	switch(dir) {
+		case NORTH :
+			for (int i = 0; i < n; i++) {
+				distance += (xi[0][i] - xj[n-1][i])*(xi[0][i] - xj[n-1][i]);
+			}
+			break;
+		case SOUTH : 
+			for (int i = 0; i < n; i++) {
+				distance += (xi[n-1][i] - xj[0][i])*(xi[n-1][i] - xj[0][i]);
+			}
+			break;
+		case WEST : 
+			for (int i = 0; i < n; i++ ) {
+				distance += (xi[i][0] - xj[i][n-1])*(xi[i][0] - xj[i][n-1]);
+			}
+			break;
+		case EAST :
+			for (int i = 0; i < n; i++) {
+				distance += (xi[i][n-1] - xj[i][0])*(xi[i][n-1] - xj[i][0]);
+			}
+			break;
 	}
 
-	return exp(-distance/(2*pow(sigma, 2)));
+	return exp(-distance/(2*sigma*sigma));
 }
 
 int main() {
