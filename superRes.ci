@@ -3,23 +3,23 @@ mainmodule SuperResolution {
 
 readonly CProxy_Main mainProxy;
 
-mainchare main {
-  entry Main();
-  entry Converge(/*param depending on the callback/reduction scheme*/);
+mainchare Main {
+  entry Main(CkArgMsg *m);
+  entry [reductiontarget]void Converge(/*param depending on the callback/reduction scheme*/);
   
   /*
   Recv final patch and create the hiRes image
   */
-  entry RecvFinalPatch(int i, int j, int index);
+  entry void RecvFinalPatch(int i, int j, int index);
 
 };
 
 array [2D] PatchArray {
   entry PatchArray(void); //call setup 
 
-  entry RecvCandidatesFromNeighbors(int dir, int size, int indices[size]); 
-  entry RecvMessageFromNeighbor(int dir,int size, double msg[size]);
-  entry GetFinalPatch(); // calls cb RecvFinalPatch on mainProxy
+  entry void RecvCandidatesFromNeighbors(int dir, int size, int indices[size]); 
+  entry void RecvMessageFromNeighbor(int dir,int size, double msg[size]);
+  entry void GetFinalPatch(); // calls cb RecvFinalPatch on mainProxy
   entry void Setup() {
 
     serial "setup" {
@@ -36,7 +36,7 @@ array [2D] PatchArray {
       }
     }
 
-  }
+  };
 
   entry void Run()
   {
@@ -67,5 +67,7 @@ array [2D] PatchArray {
     {
       ConvergenceTest(); //calls cb converge on mainProxy
     }
-  }
+  };
+ 
+ };
 };
