@@ -4,6 +4,7 @@ import scipy.io
 import scipy.ndimage
 import scipy.misc
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 def blockshaped(arr, nrows, ncols):
     """
@@ -20,9 +21,12 @@ def blockshaped(arr, nrows, ncols):
                .swapaxes(1,2)
                .reshape(-1, nrows, ncols))
 
+
+fname = 'cat.jpg'
 #Read in image (mat file in this case)
-mat = sp.io.loadmat("digits.mat")
-mat = mat['d'][:,0].reshape(28,28).T
+#mat = sp.io.loadmat("digits.mat")
+#mat = mat['d'][:,0].reshape(28,28).T
+mat = mpimg.imread(fname)[:, :, 0]
 plt.imshow(mat, interpolation='none')
 plt.show()
 
@@ -41,6 +45,9 @@ newbig = sp.ndimage.zoom(small, 2, order=3)
 plt.imshow(newbig, interpolation='none')
 plt.show()
 
-#Break upsampled image into blocks
+#Break upsampled image into blocks after subtracting extra pixels
 PATCH_SIZE = 4
+endx = -(newbig.shape[0] % PATCH_SIZE) + newbig.shape[0]
+endy = -(newbig.shape[1] % PATCH_SIZE) + newbig.shape[1]
+newbig = newbig[:endx, :endy]
 blocks = blockshaped(newbig, PATCH_SIZE, PATCH_SIZE)
