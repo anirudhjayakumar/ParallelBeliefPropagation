@@ -42,5 +42,5 @@ plt.imshow(newbig, interpolation='none')
 plt.show()
 
 #Break upsampled image into blocks
-PATCH_SIZE = 7
-blocks = blockshaped(small, PATCH_SIZE, PATCH_SIZE)
+PATCH_SIZE = 4
+blocks = blockshaped(newbig, PATCH_SIZE, PATCH_SIZE)
