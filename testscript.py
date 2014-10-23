@@ -41,3 +41,14 @@ endx = -(newbig.shape[0] % PATCH_SIZE) + newbig.shape[0]
 endy = -(newbig.shape[1] % PATCH_SIZE) + newbig.shape[1]
 newbig = newbig[:endx, :endy]
 blocks = blockshaped(newbig, PATCH_SIZE, PATCH_SIZE)
+
+#Contrast normalize the image somewhere
+#MxM vs NxN
+#Highpass filter or difference?
+#Cut out the most low-frequency patches
+
+#Find the diff patches corresponding to each low-res patch
+diffimage = mat[:endx, :endy] - newbig
+blocks = blockshaped(diffimage, PATCH_SIZE, PATCH_SIZE)
+
+#Output the patch pairs into binary files
