@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#define SIGMA 1.0
 
 enum direction {NORTH, SOUTH, EAST, WEST};
 
@@ -10,11 +11,10 @@ double psi(double xi[][n], double xj[][n], direction dir) {
 	xi and xj:  n x n array of doubles
 	n: length of one dimension of xi
 	dir: how to go from xi to xj
-	sigma: noise paramter (scalar)
+	SIGMA: noise paramter (scalar)
 
 	Assumes overlap of one pixel.
 	*/
-	double sigma = 1.0;
 	double distance = 0;
 	switch(dir) {
 		case NORTH :
@@ -39,8 +39,27 @@ double psi(double xi[][n], double xj[][n], direction dir) {
 			break;
 	}
 
-	return exp(-distance/(2*sigma*sigma));
+	return exp(-distance/(2*SIGMA*SIGMA));
 }
+
+
+template<size_t n>
+double phi(double xi[][n], double xj[][n]) {
+	/*
+	xi and xj:  n x n array of doubles
+	n: length of one dimension of xi
+	SIGMA: noise paramter (scalar)
+	*/
+	double distance = 0;
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++) {
+			distance += (xi[i][j] - xj[i][j])*(xi[i][j] - xj[i][j]);
+		}
+	}
+
+	return exp(-distance/(2*SIGMA*SIGMA));
+}
+
 
 int main() {
 	direction dir;
@@ -54,4 +73,5 @@ int main() {
 		              {3, 4}};
 
 	printf("%f\n", psi(xi, xj, dir));
+	printf("%g\n", phi(xi, xj));
 }
