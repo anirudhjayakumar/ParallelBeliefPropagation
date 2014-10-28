@@ -1,5 +1,5 @@
 //Space delimited
-num_blocks(int) patch_size_squared(int)
+num_blocks(int) low_patch_size_squared(int) high_patch_size_squared(int)
 //num_blocks rows that look like:
-patch_size_squared doubles -> low_res and patch_size_squared doubles -> high_res
+low_patch_size_squared doubles -> low_res and high_patch_size_squared doubles -> high_res
 //low_res and high_res are flattened matrices in row major order
