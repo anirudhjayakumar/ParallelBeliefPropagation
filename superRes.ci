@@ -10,7 +10,7 @@ mainchare Main {
   /*
   Recv final patch and create the hiRes image
   */
-  entry void RecvFinalPatch(int i, int j, int index);
+  entry [reductiontarget]void RecvFinalPatch(int i, int j, int index);
 
 };
 
