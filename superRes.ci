@@ -46,7 +46,7 @@ array [2D] PatchArray {
 
   entry void Run()
   {
-    for (iter=0; iter < MAX_ITER; ++iter)
+    for (iter=0; iter < CONV_PERIOD; ++iter)
     {
       serial "Compute message" {
         ComputeMessage();
