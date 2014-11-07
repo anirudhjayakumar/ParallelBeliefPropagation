@@ -36,6 +36,12 @@ array [2D] PatchArray {
       }
     }
 
+    serial "init msgs" {
+      InitMsg();
+    }
+    serial "call run" {
+      thisProxy.Run();
+    }
   };
 
   entry void Run()
@@ -49,25 +55,19 @@ array [2D] PatchArray {
 
       for (recv_count=0;recv_count<4;++Recv_count)
       {
-        when RecvMessageFromNeighbor(int dir,int size, double msg[size])
+        when RecvMessageFromNeighbor[iter](int itr_, int dir,int size, double msg[size])
         serial "Process message" {
           ProcessMsgFromNeighbor(dir,size,msg);
         }
       }
       
-      serial "Calculate Belief"
-      {
-        ComputeBelief();
-
-      }
 
     }
-
     serial "convergence test" 
     {
-      ConvergenceTest(); //calls cb converge on mainProxy
+       ComputeBelief();
+       ConvergenceTest(); //calls cb converge on mainProxy
     }
-  };
- 
+  }; 
  };
 };
