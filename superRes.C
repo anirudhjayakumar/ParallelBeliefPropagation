@@ -18,6 +18,15 @@ class Main: public CBase_Main {
         __sdag_init();
         Setup();
     }
+
+	void CheckConverged(double norm) {
+		if (norm < TOL) {
+			arrayProxy.GetFinalPatch();
+		}
+		else {
+			arrayProxy.Run();
+		}
+	}
 };
 
 class PatchArray: public CBase_PatchArray {
@@ -26,6 +35,8 @@ class PatchArray: public CBase_PatchArray {
     vector<PatchID> nmy;
     vector< vector<PatchID> > n_patches;
     vector< vector<double> >  in_msgs, out_msgs;
+	std::vector<int> myCandidates;
+	std::vector<double> myphis;
     int x, y, dim_x, dim_y;
 
   public:
@@ -101,4 +112,29 @@ class PatchArray: public CBase_PatchArray {
         if (x < dim_x-1)
             out_msgs[3].resize(n_patches[3].size(), 1.0 / n_patches[3].size());
     }
+
+	void ConvergenceTest() {
+		numCands = myCandidates.size();
+		double mynorm = 0;
+		double newbelief;
+		/* For each candidate patch:  compute my belief
+		 * sum difference between new belief and old belief
+		 * replace old belief with new belief*/
+		for (int i=0; i<numCands i++) {
+			newbelief = computeBelief(i);
+			mynorm += (newbelief - beliefs[i]) * (newbelief - beliefs[i]);
+			beliefs[i] = newbelief
+		}
+		/*Compute norm of belief, contribute to reduction to main chare*/
+		mynorm = sqrt(mynorm);
+		contribute(sizeof(double) &mynorm, CkReduction::max_double, CkCallback(CkReductionTarget(Main, checkConverged), mainProxy));
+	}
+
+	double computeBelief(int index) {
+		double belief = myphis[index];
+		for(int i=0; i<4; i++) {
+			belief = belief * in_msgs[i][index];
+		}
+		return belief;
+	}
 };
