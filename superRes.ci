@@ -1,8 +1,14 @@
-mainmodule SuperResolution {
 
+mainmodule SuperResolution {
+include "pup_stl.h";
 
 readonly CProxy_Main mainProxy;
+readonly CProxy_PatchArray patchArrProxy; 
 
+nodegroup TrainingSet {
+  entry TrainingSet(void);
+  entry void FillDB(const string& sTrainingSetDirPath);
+};
 mainchare Main {
   entry Main(CkArgMsg *m);
   entry [reductiontarget]void CheckConverged(double norm);
@@ -18,7 +24,7 @@ array [2D] PatchArray {
   entry PatchArray(void); //call setup 
 
   entry void RecvCandidatesFromNeighbors(int dir, int size, int indices[size]); 
-  entry void RecvMessageFromNeighbor(int dir,int size, double msg[size]);
+    entry void RecvMessageFromNeighbor(int itr_,int dir,int size, double msg[size]);
   entry void GetFinalPatch(); // calls cb RecvFinalPatch on mainProxy
   entry void Setup() {
 
@@ -50,7 +56,7 @@ array [2D] PatchArray {
     {
       serial "Compute message" {
         ComputeMessages();
-        SendMessageToNeighbors();
+        SendMessagesToNeighbors();
       }
 
 
