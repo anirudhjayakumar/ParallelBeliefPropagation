@@ -69,19 +69,19 @@ class PatchArray: public CBase_PatchArray {
     void SendMessageToNeighbors() {
         // UP
         if (y > 0)
-            thisProxy(x, y-1).RecvCandidatesFromNeighbors(DOWN, out_msgs[0]);
+            thisProxy(x, y-1).RecvCandidatesFromNeighbors(1, out_msgs[0]);
 
         // DOWN
         if (y < dim_y-1)
-            thisProxy(x, y+1).RecvCandidatesFromNeighbors(UP, out_msgs[1]);
+            thisProxy(x, y+1).RecvCandidatesFromNeighbors(0, out_msgs[1]);
 
         // LEFT
         if (x > 0)
-            thisProxy(x-1, y).RecvCandidatesFromNeighbors(RIGHT, out_msgs[2]);
+            thisProxy(x-1, y).RecvCandidatesFromNeighbors(3, out_msgs[2]);
 
         // RIGHT
         if (x < dim_x-1)
-            thisProxy(x+1, y).RecvCandidatesFromNeighbors(LEFT, out_msgs[3]);
+            thisProxy(x+1, y).RecvCandidatesFromNeighbors(2, out_msgs[3]);
     }
 
     void InitMsg() {
@@ -100,5 +100,9 @@ class PatchArray: public CBase_PatchArray {
         // RIGHT
         if (x < dim_x-1)
             out_msgs[3].resize(n_patches[3].size(), 1.0 / n_patches[3].size());
+    }
+
+    void ProcessMsgFromNeighbor(int dir, vector<double> msg) {
+        in_msgs[dir] = msg;
     }
 };
