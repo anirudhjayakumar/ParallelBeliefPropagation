@@ -5,17 +5,22 @@
 
 enum direction {NORTH, SOUTH, EAST, WEST};
 
-template<size_t n>
-double psi(double xi[][n], double xj[][n], direction dir) {
+double psi(int index_me, int index_them, direction dir) {
 	/*
-	xi and xj:  n x n array of doubles
-	n: length of one dimension of xi
-	dir: how to go from xi to xj
+	index_me: pointer to my patch in global array
+	index_them: pointer to neighbor's patch in global array
+	dir: how to go from me to them
 	SIGMA: noise paramter (scalar)
 
 	Assumes overlap of one pixel.
 	*/
+	int n;
+	double **xi, **xj;
 	double distance = 0;
+
+	xi = global_patches[index_me];
+	xj = global_patches[index_them];
+	n = xi.size();
 	switch(dir) {
 		case NORTH :
 			for (int i = 0; i < n; i++) {
@@ -43,14 +48,18 @@ double psi(double xi[][n], double xj[][n], direction dir) {
 }
 
 
-template<size_t n>
-double phi(double xi[][n], double xj[][n]) {
+double phi(int index_them) {
 	/*
-	xi and xj:  n x n array of doubles
-	n: length of one dimension of xi
+	index_them: pointer to neighbor's patch in global array
 	SIGMA: noise paramter (scalar)
 	*/
+	int n;
+	double **xi, **xj;
 	double distance = 0;
+
+	xi = myLowresPatch;
+	xj = global_patches[index_them];
+	n = xi.size();
 	for (int i = 0; i < n; i++) {
 		for (int j = 0; j < n; j++) {
 			distance += (xi[i][j] - xj[i][j])*(xi[i][j] - xj[i][j]);
@@ -58,20 +67,4 @@ double phi(double xi[][n], double xj[][n]) {
 	}
 
 	return exp(-distance/(2*SIGMA*SIGMA));
-}
-
-
-int main() {
-	direction dir;
-	int n;
-
-	n = 2;
-	dir = WEST;
-	double xi[][2] = {{0, 0},
-		              {0, 0}};
-	double xj[][2] = {{1, 2},
-		              {3, 4}};
-
-	printf("%f\n", psi(xi, xj, dir));
-	printf("%g\n", phi(xi, xj));
 }
