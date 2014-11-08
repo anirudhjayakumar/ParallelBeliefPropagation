@@ -5,7 +5,7 @@ readonly CProxy_Main mainProxy;
 
 mainchare Main {
   entry Main(CkArgMsg *m);
-  entry [reductiontarget]void Converge(/*param depending on the callback/reduction scheme*/);
+  entry [reductiontarget]void CheckConverged(double norm);
   
   /*
   Recv final patch and create the hiRes image
@@ -65,8 +65,7 @@ array [2D] PatchArray {
     }
     serial "convergence test" 
     {
-       ComputeBelief();
-       ConvergenceTest(); //calls cb converge on mainProxy
+       ConvergenceTest(); 
     }
   }; 
  };
