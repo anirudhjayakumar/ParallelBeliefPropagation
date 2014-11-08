@@ -49,9 +49,35 @@ array [2D] PatchArray {
     for (iter=0; iter < CONV_PERIOD; ++iter)
     {
       serial "Compute message" {
-        ComputeMessage();
+        ComputeMessages();
         SendMessageToNeighbors();
       }
+
+
+      // UP
+      if (y > 0) {
+        serial {
+          thisProxy(x, y-1).RecvCandidatesFromNeighbors(DOWN, out_msgs[0]);
+        }
+      }
+
+      // DOWN
+      if (y < dim_y-1)
+        serial {
+          thisProxy(x, y+1).RecvCandidatesFromNeighbors(UP, out_msgs[1]);
+        }
+
+      // LEFT
+      if (x > 0)
+        serial {
+          thisProxy(x-1, y).RecvCandidatesFromNeighbors(RIGHT, out_msgs[2]);
+        }
+
+      // RIGHT
+      if (x < dim_x-1)
+        serial {
+          thisProxy(x+1, y).RecvCandidatesFromNeighbors(LEFT, out_msgs[3]);
+        }
 
       for (recv_count=0;recv_count<4;++Recv_count)
       {
