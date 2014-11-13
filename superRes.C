@@ -1,11 +1,15 @@
 #include <stdlib.h>
 #include <vector>
+#include <string>
 #include "pup_stl.h"
-#include "PatchArray.h"
-#include "PatchArray.decl.h"
+#include "SuperResolution.decl.h"
 #include <assert.h>
 
 using namespace std;
+
+
+typedef pair<double*,double*> CandidatePair;
+typedef vector<CandidatePair> ImageDB;
 
 /*readonly*/ CProxy_Main mainProxy;
 /*readonly*/ CProxy_Cell cellProxy;
@@ -19,6 +23,31 @@ class Main: public CBase_Main {
         Setup();
     }
 };
+
+class TrainingSet: public CBase_TrainingSet
+{
+private:
+  ImageDB DB;
+public:
+  TrainingSet()
+  {
+  }
+  
+  void FillDB(const string &sTrainingSetDirPath)
+  {
+    //read code goes here
+    //iterate through each file
+    //read and populate the data base
+  }
+  
+  ImageDB *GetImageDB()
+  {
+    return &DB;
+  }
+
+};
+
+
 
 class PatchArray: public CBase_PatchArray {
     PatchArray_SDAG_CODE;
@@ -102,3 +131,5 @@ class PatchArray: public CBase_PatchArray {
             out_msgs[3].resize(n_patches[3].size(), 1.0 / n_patches[3].size());
     }
 };
+
+#include "SuperResolution.def.h"
