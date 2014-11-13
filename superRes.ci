@@ -32,9 +32,9 @@ array [2D] PatchArray {
       SetupPatch(); //finds the candidate patches
       SendPatchesToNeighbors(); 
     }
-    
+
     // need to handle border patch
-    for(recv_count=0; recv_count < 4; ++recv_count)
+    for(recv_count = 0; recv_count < 4; ++recv_count)
     {
       when RecvCandidatesFromNeighbors(int dir, int size, int indices[size]) 
       serial "Process Patch" {
@@ -52,49 +52,42 @@ array [2D] PatchArray {
 
   entry void Run()
   {
-    for (iter=0; iter < CONV_PERIOD; ++iter)
+    for (iter = 0; iter < CONV_PERIOD; ++iter)
     {
       serial "Compute message" {
         ComputeMessages();
         SendMessagesToNeighbors();
       }
 
-
       // UP
       if (y > 0) {
-        serial {
-          thisProxy(x, y-1).RecvCandidatesFromNeighbors(DOWN, out_msgs[0]);
+        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message" {
+          ProcessMsgFromNeighbor(dir, msg);
         }
       }
 
       // DOWN
-      if (y < dim_y-1)
-        serial {
-          thisProxy(x, y+1).RecvCandidatesFromNeighbors(UP, out_msgs[1]);
-        }
-
-      // LEFT
-      if (x > 0)
-        serial {
-          thisProxy(x-1, y).RecvCandidatesFromNeighbors(RIGHT, out_msgs[2]);
-        }
-
-      // RIGHT
-      if (x < dim_x-1)
-        serial {
-          thisProxy(x+1, y).RecvCandidatesFromNeighbors(LEFT, out_msgs[3]);
-        }
-
-      for (recv_count=0;recv_count<4;++Recv_count)
-      {
-        when RecvMessageFromNeighbor[iter](int itr_, int dir,int size, double msg[size])
-        serial "Process message" {
-          ProcessMsgFromNeighbor(dir,size,msg);
+      if (y < dim_y-1) {
+        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message" {
+          ProcessMsgFromNeighbor(dir, msg);
         }
       }
-      
 
+      // LEFT
+      if (x > 0) {
+        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message" {
+          ProcessMsgFromNeighbor(dir, msg);
+        }
+      }
+
+      // RIGHT
+      if (x < dim_x-1) {
+        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message" {
+          ProcessMsgFromNeighbor(dir, msg);
+        }
+      }
     }
+
     serial "convergence test" 
     {
        ConvergenceTest(); 
