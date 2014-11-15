@@ -4,12 +4,29 @@
 #include "pup_stl.h"
 #include "SuperResolution.decl.h"
 #include <assert.h>
+#include <fstream>
+#include <utility>
 
+#define SUCCESS 0
+#define FAIL    1
 using namespace std;
-
-
 typedef pair<double*,double*> CandidatePair;
-typedef vector<CandidatePair> ImageDB;
+typedef vector<CandidatePair> ImageData;
+
+struct ImageDB {
+  int nImageFiles;
+  int lowResSize; 
+  int highResSize;
+  ImageData imageData;
+  ImageDB()
+  {
+    nImageFiles=lowResSize=highResSize= 0;
+  }
+};
+typedef ImageData::iterator DBIter;
+
+
+
 
 /*readonly*/ CProxy_Main mainProxy;
 /*readonly*/ CProxy_Cell cellProxy;
@@ -42,17 +59,79 @@ public:
   {
   }
   
-  void FillDB(const string &sTrainingSetDirPath)
+  int FillDB(const string &sTrainingSetDirPath)
   {
-    //read code goes here
-    //iterate through each file
-    //read and populate the data base
+  ifstream imageFile;
+  imageFile.open(fileName.c_str());
+  int totalPatchPerFile,lowResSize,highResSize;
+
+  /* open the file, read the meta data(total patches,
+   * lowRes size and highRes size).
+   * Then read each line and fill the data base.
+   * Each line has both lowRes and highRes data.
+   * */
+  if (imageFile.is_open()) {
+      
+     imageFile >> totalPatchPerFile;
+     imageFile >> lowResSize;
+     imageFile >> highResSize;
+
+     //check if all files in the training set have same patch size
+     if((db.nImageFiles > 0 && (db.lowResSize != lowResSize || db.highResSize != highResSize)))
+     {
+       cout << "ERROR: DB input patch size don't match across inputs" << endl;
+       return FAIL;
+     }
+
+     if(db.nImageFiles == 0) 
+     {
+       db.lowResSize = lowResSize;
+       db.highResSize = highResSize;
+     }
+
+     db.nImageFiles++;
+     for (int i=0;i < totalPatchPerFile;++i)
+     {
+       double *pLowRes  = new double[db.lowResSize];
+       double *pHighRes = new double[db.highResSize];
+       for (int lowResIndex = 0; lowResIndex < db.lowResSize; ++lowResIndex)
+       {
+         imageFile >> pLowRes[lowResIndex];
+
+       }
+       for (int highResIndex = 0; highResIndex < db.highResSize; ++highResIndex)
+       {
+         imageFile >> pHighRes[highResIndex];
+       }
+       CandidatePair pair = make_pair(pLowRes,pHighRes);
+       db.imageData.push_back(pair);
+     }
+  }
+  return SUCCESS;
+
   }
   
   ImageDB *GetImageDB()
   {
     return &DB;
   }
+
+  void PrintDB()
+{
+  cout << "=================DB Begin==================" << endl;
+  cout << db.lowResSize << " " << db.highResSize << endl;
+  for(DBIter itr = db.imageData.begin(); itr != db.imageData.end(); ++itr)
+  {
+    CandidatePair &dbItem = *itr;
+    for(int i =0;i<db.lowResSize;++i)
+      cout << dbItem.first[i] << " ";
+    for(int i=0;i<db.highResSize;++i)
+      cout << dbItem.second[i] << " ";
+    cout << endl;
+  }
+  cout << "=================DB End====================" << endl;
+}
+  
 
 };
 
@@ -109,19 +188,19 @@ class PatchArray: public CBase_PatchArray {
     void SendMessageToNeighbors() {
         // UP
         if (y > 0)
-            thisProxy(x, y-1).RecvCandidatesFromNeighbors(DOWN, out_msgs[0]);
+            thisProxy(x, y-1).RecvCandidatesFromNeighbors(1, out_msgs[0]);
 
         // DOWN
         if (y < dim_y-1)
-            thisProxy(x, y+1).RecvCandidatesFromNeighbors(UP, out_msgs[1]);
+            thisProxy(x, y+1).RecvCandidatesFromNeighbors(0, out_msgs[1]);
 
         // LEFT
         if (x > 0)
-            thisProxy(x-1, y).RecvCandidatesFromNeighbors(RIGHT, out_msgs[2]);
+            thisProxy(x-1, y).RecvCandidatesFromNeighbors(3, out_msgs[2]);
 
         // RIGHT
         if (x < dim_x-1)
-            thisProxy(x+1, y).RecvCandidatesFromNeighbors(LEFT, out_msgs[3]);
+            thisProxy(x+1, y).RecvCandidatesFromNeighbors(2, out_msgs[3]);
     }
 
     void InitMsg() {
@@ -140,6 +219,10 @@ class PatchArray: public CBase_PatchArray {
         // RIGHT
         if (x < dim_x-1)
             out_msgs[3].resize(n_patches[3].size(), 1.0 / n_patches[3].size());
+    }
+
+    void ProcessMsgFromNeighbor(int dir, vector<double> msg) {
+        in_msgs[dir] = msg;
     }
 
 	void ConvergenceTest() {

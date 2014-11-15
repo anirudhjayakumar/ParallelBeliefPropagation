@@ -3,6 +3,7 @@ import scipy as sp
 import scipy.io
 import scipy.ndimage
 import scipy.misc
+from scipy import ndimage
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
@@ -36,19 +37,27 @@ small = blurred[::2, ::2]
 newbig = sp.ndimage.zoom(small, 2, order=3)
 
 #Break upsampled image into blocks after subtracting extra pixels
-PATCH_SIZE = 4
-endx = -(newbig.shape[0] % PATCH_SIZE) + newbig.shape[0]
-endy = -(newbig.shape[1] % PATCH_SIZE) + newbig.shape[1]
-newbig = newbig[:endx, :endy]
+PATCH_SIZE = 5
+endx = -((newbig.shape[0]-2) % PATCH_SIZE) + newbig.shape[0]
+endy = -((newbig.shape[1]-2) % PATCH_SIZE) + newbig.shape[1]
+newbig = newbig[1:endx-1, 1:endy-1]
 blocks = blockshaped(newbig, PATCH_SIZE, PATCH_SIZE)
+
+#Make high frequency image and break it into blocks
+lowpass = ndimage.gaussian_filter(mat, 3)
+highpass = mat - lowpass
+highpass = highpass[:endx, :endy]
+shp = blocks.shape
+highblocks = np.zeros((shp[0], shp[1]+2, shp[2]+2))
+for i in range(0, highblocks.shape[1]):
+    starti = i*PATCH_SIZE
+    endi = starti + PATCH_SIZE + 2
+    for j in range(0, highblocks.shape[2]):
+        startj = j*PATCH_SIZE
+        endj = startj + PATCH_SIZE + 2
+        highblocks[i*highblocks.shape[1] + j] = \
+            highpass[starti:endi, startj:endj]
 
 #Contrast normalize the image somewhere
 #MxM vs NxN
-#Highpass filter or difference?
 #Cut out the most low-frequency patches
-
-#Find the diff patches corresponding to each low-res patch
-diffimage = mat[:endx, :endy] - newbig
-blocks = blockshaped(diffimage, PATCH_SIZE, PATCH_SIZE)
-
-#Output the patch pairs into binary files
