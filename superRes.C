@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <fstream>
 #include <utility>
+#include "pup_stl.h"
+#include "SuperResolution.decl.h"
 
 #define SUCCESS 0
 #define FAIL    1
@@ -29,14 +31,16 @@ typedef ImageData::iterator DBIter;
 
 
 /*readonly*/ CProxy_Main mainProxy;
-/*readonly*/ CProxy_Cell cellProxy;
+/*readonly*/ CProxy_PatchArray arrayProxy; 
+
+const double TOL = 1.0;
 
 class Main: public CBase_Main {
-    Main_SDAG_CODE;
-
   public:
     Main(CkArgMsg *m) {
-        __sdag_init();
+        // placeholder dimensions
+        CkArrayOptions opts(10, 10);
+        arrayProxy = CProxy_PatchArray::ckNew(opts);
         Setup();
     }
 
@@ -48,6 +52,11 @@ class Main: public CBase_Main {
 			arrayProxy.Run();
 		}
 	}
+
+    void RecvFinalPatch(CkReductionMsg *msg) {
+        patch_t *p = msg->getData();
+        int num_elements = msg->size() / sizeof(patch_t);
+    }
 };
 
 class TrainingSet: public CBase_TrainingSet
@@ -138,11 +147,12 @@ public:
 
 
 class PatchArray: public CBase_PatchArray {
-    PatchArray_SDAG_CODE;
+    PatchArray_SDAG_CODE
 
     vector<PatchID> nmy;
     vector< vector<PatchID> > n_patches;
     vector< vector<double> >  in_msgs, out_msgs;
+    vector<double> beliefs;
 	std::vector<int> myCandidates;
 	std::vector<double> myphis;
     int x, y, dim_x, dim_y;
@@ -157,6 +167,24 @@ class PatchArray: public CBase_PatchArray {
         n_patches.resize(4);
         out_msgs.resize(4);
         in_msgs.resize(4);
+    }
+
+    void SendPatchesToNeighbors() {
+        // UP
+        if (y > 0)
+            thisProxy(x, y-1).RecvCandidatesFromNeighbors(1, nmy);
+
+        // DOWN
+        if (y < dim_y-1)
+            thisProxy(x, y+1).RecvCandidatesFromNeighbors(0, nmy);
+
+        // LEFT
+        if (x > 0)
+            thisProxy(x-1, y).RecvCandidatesFromNeighbors(3, nmy);
+
+        // RIGHT
+        if (x < dim_x-1)
+            thisProxy(x+1, y).RecvCandidatesFromNeighbors(2, nmy);
     }
 
     void ComputeMessages() {
@@ -188,19 +216,19 @@ class PatchArray: public CBase_PatchArray {
     void SendMessageToNeighbors() {
         // UP
         if (y > 0)
-            thisProxy(x, y-1).RecvCandidatesFromNeighbors(1, out_msgs[0]);
+            thisProxy(x, y-1).RecvMessageFromNeighbor(1, out_msgs[0]);
 
         // DOWN
         if (y < dim_y-1)
-            thisProxy(x, y+1).RecvCandidatesFromNeighbors(0, out_msgs[1]);
+            thisProxy(x, y+1).RecvMessageFromNeighbor(0, out_msgs[1]);
 
         // LEFT
         if (x > 0)
-            thisProxy(x-1, y).RecvCandidatesFromNeighbors(3, out_msgs[2]);
+            thisProxy(x-1, y).RecvMessageFromNeighbor(3, out_msgs[2]);
 
         // RIGHT
         if (x < dim_x-1)
-            thisProxy(x+1, y).RecvCandidatesFromNeighbors(2, out_msgs[3]);
+            thisProxy(x+1, y).RecvMessageFromNeighbor(2, out_msgs[3]);
     }
 
     void InitMsg() {
@@ -226,20 +254,20 @@ class PatchArray: public CBase_PatchArray {
     }
 
 	void ConvergenceTest() {
-		numCands = myCandidates.size();
+		int numCands = myCandidates.size();
 		double mynorm = 0;
 		double newbelief;
 		/* For each candidate patch:  compute my belief
 		 * sum difference between new belief and old belief
 		 * replace old belief with new belief*/
-		for (int i=0; i<numCands i++) {
+		for (int i=0; i<numCands; i++) {
 			newbelief = computeBelief(i);
 			mynorm += (newbelief - beliefs[i]) * (newbelief - beliefs[i]);
-			beliefs[i] = newbelief
+			beliefs[i] = newbelief;
 		}
 		/*Compute norm of belief, contribute to reduction to main chare*/
 		mynorm = sqrt(mynorm);
-		contribute(sizeof(double) &mynorm, CkReduction::max_double, CkCallback(CkReductionTarget(Main, checkConverged), mainProxy));
+		contribute(sizeof(double), &mynorm, CkReduction::max_double, CkCallback(CkReductionTarget(Main, CheckConverged), mainProxy));
 	}
 
 	double computeBelief(int index) {
@@ -249,6 +277,11 @@ class PatchArray: public CBase_PatchArray {
 		}
 		return belief;
 	}
+
+    void GetFinalPatch() {
+        patch_t data;
+        contribute(sizeof(patch_t), data, CkReduction::concat, CkCallback(CkIndex_Main::RecvFinalPatch(NULL), mainProxy));
+    }
 };
 
 #include "SuperResolution.def.h"
