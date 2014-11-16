@@ -1,7 +1,9 @@
 #include <stdlib.h>
+#include <iostream>
 #include <vector>
 #include <string>
 #include "pup_stl.h"
+using namespace std;
 #include "SuperResolution.decl.h"
 #include <assert.h>
 #include <fstream>
@@ -9,11 +11,27 @@
 #include "pup_stl.h"
 #include "SuperResolution.decl.h"
 
+
+// macros and constants 
 #define SUCCESS 0
 #define FAIL    1
-using namespace std;
+#define CONV_PERIOD 5 // convergence test every CONV_PERIOD
+const double TOL = 1.0;
+
+
+// utility functions
+int GetFilesFromDir(const string &sFolderName, vector<string> &);
+
+
+
+
+
+
+//typedefs 
 typedef pair<double*,double*> CandidatePair;
 typedef vector<CandidatePair> ImageData;
+typedef unsigned int PatchID; 
+
 
 struct ImageDB {
   int nImageFiles;
@@ -33,16 +51,30 @@ typedef ImageData::iterator DBIter;
 /*readonly*/ CProxy_Main mainProxy;
 /*readonly*/ CProxy_PatchArray arrayProxy; 
 
-const double TOL = 1.0;
 
 class Main: public CBase_Main {
   public:
     Main(CkArgMsg *m) {
-        // placeholder dimensions
-        CkArrayOptions opts(10, 10);
-        arrayProxy = CProxy_PatchArray::ckNew(opts);
-        Setup();
+      //print usage details
+      if(m->argc != 2)
+      {
+        CkPrintf("Usage: ./charmrun +p4 ./superRes <db folder path>");
+      }
+
+      mainProxy = thisProxy;
+
+      //get the training set directory
+      const string sDBFolderPath = m->argv[1]; 
+      //construct node group
+      CProxy_DBNode dbProxy = CProxy_DBNode::ckNew();
+      dbProxy.FillDB(sDBFolderPath);
+      //construct patcharray
+      // placeholder dimensions
+      CkArrayOptions opts(10, 10);
+      arrayProxy = CProxy_PatchArray::ckNew(opts);
+
     }
+
 
 	void CheckConverged(double norm) {
 		if (norm < TOL) {
@@ -53,25 +85,39 @@ class Main: public CBase_Main {
 		}
 	}
 
-    void RecvFinalPatch(CkReductionMsg *msg) {
+  void RecvFinalPatch(CkReductionMsg *msg) {
         patch_t *p = msg->getData();
         int num_elements = msg->size() / sizeof(patch_t);
-    }
+  }
+  
+  void DB_Populated()
+  {
+    arrayProxy.Setup();
+  }
 };
 
-class TrainingSet: public CBase_TrainingSet
+class DBNode: public CBase_DBNode
 {
 private:
-  ImageDB DB;
+  ImageDB db;
 public:
-  TrainingSet()
+DBNode()
   {
   }
   
   int FillDB(const string &sTrainingSetDirPath)
   {
+    vector<string> sFiles;
+    if(GetFilesFromDir(sTrainingSetDirPath,sFiles) == FAIL)
+    {
+      CkExit();
+    }
+
+    for(vector<string>::iterator itr = sFiles.begin(); itr != sFiles.end(); ++itr)
+    {
+
   ifstream imageFile;
-  imageFile.open(fileName.c_str());
+  imageFile.open(itr->c_str());
   int totalPatchPerFile,lowResSize,highResSize;
 
   /* open the file, read the meta data(total patches,
@@ -116,6 +162,9 @@ public:
        db.imageData.push_back(pair);
      }
   }
+    }
+
+  contribute(CkCallback(CkReductionTarget(Main, DB_Populated), mainProxy));
   return SUCCESS;
 
   }
@@ -148,15 +197,15 @@ public:
 
 class PatchArray: public CBase_PatchArray {
     PatchArray_SDAG_CODE
-
+  private:
     vector<PatchID> nmy;
     vector< vector<PatchID> > n_patches;
     vector< vector<double> >  in_msgs, out_msgs;
     vector<double> beliefs;
-	std::vector<int> myCandidates;
-	std::vector<double> myphis;
+	  std::vector<int> myCandidates;
+	  std::vector<double> myphis;
     int x, y, dim_x, dim_y;
-
+   
   public:
     PatchArray() {
         __sdag_init();
@@ -283,5 +332,30 @@ class PatchArray: public CBase_PatchArray {
         contribute(sizeof(patch_t), data, CkReduction::concat, CkCallback(CkIndex_Main::RecvFinalPatch(NULL), mainProxy));
     }
 };
+
+
+int GetFilesFromDir(const string &sFolderName, vector<string> &vFilePaths)
+{
+#include <dirent.h>
+  DIR *dir;
+  struct dirent *ent;
+  if ((dir = opendir (sFolderName.c_str())) != NULL) {
+      /* add all filepath in the training folder to vector*/
+      while ((ent = readdir (dir)) != NULL) {
+            vFilePaths.push_back(ent->d_name);
+      }
+      closedir (dir);
+      return SUCCESS;
+  } else {
+      /* could not open directory */
+      cout << "ERROR:" << sFolderName << " contains files that don't open";
+      return FAIL;
+  }
+}
+
+
+
+
+
 
 #include "SuperResolution.def.h"
