@@ -1,4 +1,4 @@
-CHARMC = /dcsdata/home/anirudh/code/charm_master/netlrts-linux-x86_64/bin/charmc $(OPTS)
+CHARMC=/home/ralfgunter/uiuc/curr/cs598lvk/charm/bin/charmc $(OPTS)
 TESTOPTS = ++local
  
 OBJS = superRes.o
@@ -21,7 +21,7 @@ clean:
 cleanp:
 	rm -f *.sts *.gz *.projrc *.topo *.out
  
-superRes.o: superRes.cpp SuperResolution.decl.h
+superRes.o: superRes.C SuperResolution.decl.h
 	$(CHARMC) -c -g superRes.C
  
 test: all
