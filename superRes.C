@@ -9,13 +9,15 @@ using namespace std;
 
 const double TOL = 1.0;
 
+double phi(PatchID);
+double psi(PatchID, PatchID);
+
 class Main: public CBase_Main {
   public:
     Main(CkArgMsg *m) {
         // placeholder dimensions
         CkArrayOptions opts(10, 10);
         arrayProxy = CProxy_PatchArray::ckNew(opts);
-        Setup();
     }
 
 	void CheckConverged(double norm) {
@@ -28,8 +30,7 @@ class Main: public CBase_Main {
 	}
 
     void RecvFinalPatch(CkReductionMsg *msg) {
-        patch_t *p = msg->getData();
-        int num_elements = msg->size() / sizeof(patch_t);
+        patch_t *p = (patch_t *) msg->getData();
     }
 };
 
@@ -43,6 +44,7 @@ class PatchArray: public CBase_PatchArray {
 	std::vector<int> myCandidates;
 	std::vector<double> myphis;
     int x, y, dim_x, dim_y;
+    int iter;
 
   public:
     PatchArray() {
@@ -54,6 +56,8 @@ class PatchArray: public CBase_PatchArray {
         n_patches.resize(4);
         out_msgs.resize(4);
         in_msgs.resize(4);
+
+        Setup();
     }
 
     void SendPatchesToNeighbors() {
@@ -79,43 +83,43 @@ class PatchArray: public CBase_PatchArray {
         if (y > 0)
             for (int i = 0; i < nmy.size(); ++i)
                 for (int j = 0; j < out_msgs[0].size(); ++j)
-                    out_msgs[0][j] += phi(nmy[i]) * psi(nmy[i], n_patches[0]) * (in_msgs[1][i] * in_msgs[2][i] * in_msgs[3][i]);
+                    out_msgs[0][j] += phi(nmy[i]) * psi(nmy[i], n_patches[0][j]) * (in_msgs[1][i] * in_msgs[2][i] * in_msgs[3][i]);
 
         // DOWN
         if (y < dim_y-1)
             for (int i = 0; i < nmy.size(); ++i)
                 for (int j = 0; j < out_msgs[1].size(); ++j)
-                    out_msgs[1][j] += phi(nmy[i]) * psi(nmy[i], n_patches[1]) * (in_msgs[0][i] * in_msgs[2][i] * in_msgs[3][i]);
+                    out_msgs[1][j] += phi(nmy[i]) * psi(nmy[i], n_patches[1][j]) * (in_msgs[0][i] * in_msgs[2][i] * in_msgs[3][i]);
 
         // LEFT
         if (x > 0)
             for (int i = 0; i < nmy.size(); ++i)
                 for (int j = 0; j < out_msgs[2].size(); ++j)
-                    out_msgs[2][j] += phi(nmy[i]) * psi(nmy[i], n_patches[2]) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[3][i]);
+                    out_msgs[2][j] += phi(nmy[i]) * psi(nmy[i], n_patches[2][j]) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[3][i]);
 
         // RIGHT
         if (x < dim_x-1)
             for (int i = 0; i < nmy.size(); ++i)
                 for (int j = 0; j < out_msgs[3].size(); ++j)
-                    out_msgs[3][j] += phi(nmy[i]) * psi(nmy[i], n_patches[3]) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[2][i]);
+                    out_msgs[3][j] += phi(nmy[i]) * psi(nmy[i], n_patches[3][j]) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[2][i]);
     }
 
-    void SendMessageToNeighbors() {
+    void SendMessagesToNeighbors() {
         // UP
         if (y > 0)
-            thisProxy(x, y-1).RecvMessageFromNeighbor(1, out_msgs[0]);
+            thisProxy(x, y-1).RecvMessageFromNeighbor(iter, 1, out_msgs[0]);
 
         // DOWN
         if (y < dim_y-1)
-            thisProxy(x, y+1).RecvMessageFromNeighbor(0, out_msgs[1]);
+            thisProxy(x, y+1).RecvMessageFromNeighbor(iter, 0, out_msgs[1]);
 
         // LEFT
         if (x > 0)
-            thisProxy(x-1, y).RecvMessageFromNeighbor(3, out_msgs[2]);
+            thisProxy(x-1, y).RecvMessageFromNeighbor(iter, 3, out_msgs[2]);
 
         // RIGHT
         if (x < dim_x-1)
-            thisProxy(x+1, y).RecvMessageFromNeighbor(2, out_msgs[3]);
+            thisProxy(x+1, y).RecvMessageFromNeighbor(iter, 2, out_msgs[3]);
     }
 
     void InitMsg() {
