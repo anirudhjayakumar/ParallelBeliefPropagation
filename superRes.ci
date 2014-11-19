@@ -4,6 +4,9 @@ include "pup_stl.h";
 readonly CProxy_Main mainProxy;
 readonly CProxy_PatchArray arrayProxy; 
 
+readonly int arrayXDim;
+readonly int arrayYDim;
+
 nodegroup DBNode {
   entry DBNode(void);
   entry void FillDB(const string& sTrainingSetDirPath);
@@ -17,13 +20,13 @@ mainchare Main {
   /*
   Recv final patch and create the hiRes image
   */
-  entry [reductiontarget] void RecvFinalPatch(int i, int j, int index);
+  entry [reductiontarget] void RecvFinalPatch(CkReductionMsg *msg);
 };
 
 array [2D] PatchArray {
   entry PatchArray(void); //call setup 
 
-  entry void RecvCandidatesFromNeighbors(int dir, int size, int indices[size]); 
+  entry void RecvCandidatesFromNeighbors(int dir, vector<PatchID> patches); 
   entry void RecvMessageFromNeighbor(int itr,int dir,vector<double> msg);
   entry void GetFinalPatch(); // calls cb RecvFinalPatch on mainProxy
   entry void Setup() {
@@ -33,30 +36,30 @@ array [2D] PatchArray {
     }
 
     if (y > 0) {
-      when RecvCandidatesFromNeighbors(int dir, int size, int indices[size]) 
-      serial "Process Patch south" {
-        ProcessCandidates(dir, size, indices);
+      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
+      serial "Process Patch y gt" {
+        ProcessCandidates(dir, indices);
       }
     }
 
-    if (y < dim_y-1) {
-      when RecvCandidatesFromNeighbors(int dir, int size, int indices[size]) 
-      serial "Process Patch north" {
-        ProcessCandidates(dir, size, indices);
+    if (y < arrayYDim-1) {
+      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
+      serial "Process Patch y lt" {
+        ProcessCandidates(dir, indices);
       }
     }
 
     if (x > 0) {
-      when RecvCandidatesFromNeighbors(int dir, int size, int indices[size]) 
-      serial "Process Patch east" {
-        ProcessCandidates(dir, size, indices);
+      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
+      serial "Process Patch x gt" {
+        ProcessCandidates(dir, indices);
       }
     }
 
-    if (x < dim_x-1) {
-      when RecvCandidatesFromNeighbors(int dir, int size, int indices[size]) 
-      serial "Process Patch west" {
-        ProcessCandidates(dir, size, indices);
+    if (x < arrayXDim-1) {
+      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
+      serial "Process Patch x lt" {
+        ProcessCandidates(dir, indices);
       }
     }
 
@@ -85,7 +88,7 @@ array [2D] PatchArray {
       }
 
       // DOWN
-      if (y < dim_y-1) {
+      if (y < arrayYDim-1) {
         when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message south" {
           ProcessMsgFromNeighbor(dir, msg);
         }
@@ -99,7 +102,7 @@ array [2D] PatchArray {
       }
 
       // RIGHT
-      if (x < dim_x-1) {
+      if (x < arrayXDim-1) {
         when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message east" {
           ProcessMsgFromNeighbor(dir, msg);
         }

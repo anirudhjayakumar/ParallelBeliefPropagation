@@ -1,56 +1,13 @@
-#include <stdlib.h>
-#include <iostream>
-#include <vector>
-#include <string>
-#include "pup_stl.h"
-using namespace std;
+#include "SuperResolution.h"
 #include "SuperResolution.decl.h"
-#include <assert.h>
-#include <fstream>
-#include <utility>
-#include "pup_stl.h"
-#include "SuperResolution.decl.h"
-
-
-// macros and constants 
-#define SUCCESS 0
-#define FAIL    1
-#define CONV_PERIOD 5 // convergence test every CONV_PERIOD
-const double TOL = 1.0;
-
-
-// utility functions
-int GetFilesFromDir(const string &sFolderName, vector<string> &);
-
-
-
-
-
-
-//typedefs 
-typedef pair<double*,double*> CandidatePair;
-typedef vector<CandidatePair> ImageData;
-typedef unsigned int PatchID; 
-
-
-struct ImageDB {
-  int nImageFiles;
-  int lowResSize; 
-  int highResSize;
-  ImageData imageData;
-  ImageDB()
-  {
-    nImageFiles=lowResSize=highResSize= 0;
-  }
-};
-typedef ImageData::iterator DBIter;
-
 
 
 
 /*readonly*/ CProxy_Main mainProxy;
-/*readonly*/ CProxy_PatchArray arrayProxy; 
-
+/*readonly*/ CProxy_PatchArray arrayProxy;
+/*readonly*/ CProxy_DBNode dbProxy;
+/*readonly*/ int arrayXDim;
+/*readonly*/ int arrayYDim;
 
 class Main: public CBase_Main {
   public:
@@ -66,11 +23,13 @@ class Main: public CBase_Main {
       //get the training set directory
       const string sDBFolderPath = m->argv[1]; 
       //construct node group
-      CProxy_DBNode dbProxy = CProxy_DBNode::ckNew();
+      dbProxy = CProxy_DBNode::ckNew();
       dbProxy.FillDB(sDBFolderPath);
       //construct patcharray
       // placeholder dimensions
-      CkArrayOptions opts(10, 10);
+      arrayXDim = 10;
+      arrayYDim = 10;
+      CkArrayOptions opts(arrayXDim, arrayYDim);
       arrayProxy = CProxy_PatchArray::ckNew(opts);
 
     }
@@ -86,8 +45,8 @@ class Main: public CBase_Main {
 	}
 
   void RecvFinalPatch(CkReductionMsg *msg) {
-        patch_t *p = msg->getData();
-        int num_elements = msg->size() / sizeof(patch_t);
+        patch_t *p = (patch_t*)msg->getData();
+        int num_elements = msg->getSize() / sizeof(patch_t);
   }
   
   void DB_Populated()
@@ -147,8 +106,8 @@ DBNode()
      db.nImageFiles++;
      for (int i=0;i < totalPatchPerFile;++i)
      {
-       double *pLowRes  = new double[db.lowResSize];
-       double *pHighRes = new double[db.highResSize];
+       Patch pLowRes  = new double[db.lowResSize];
+       Patch pHighRes = new double[db.highResSize];
        for (int lowResIndex = 0; lowResIndex < db.lowResSize; ++lowResIndex)
        {
          imageFile >> pLowRes[lowResIndex];
@@ -171,7 +130,7 @@ DBNode()
   
   ImageDB *GetImageDB()
   {
-    return &DB;
+    return &db;
   }
 
   void PrintDB()
@@ -196,16 +155,18 @@ DBNode()
 
 
 class PatchArray: public CBase_PatchArray {
-    PatchArray_SDAG_CODE
+  PatchArray_SDAG_CODE
   private:
-    vector<PatchID> nmy;
-    vector< vector<PatchID> > n_patches;
+    vector<PatchID> myCandidates;
+    vector< vector<PatchID> > neighCandidates;
     vector< vector<double> >  in_msgs, out_msgs;
     vector<double> beliefs;
-	  std::vector<int> myCandidates;
 	  std::vector<double> myphis;
-    int x, y, dim_x, dim_y;
-   
+    int x, y;
+    Patch myPatch;
+    ImageDB *DB;
+	  int iter;
+    
   public:
     PatchArray() {
         __sdag_init();
@@ -213,89 +174,99 @@ class PatchArray: public CBase_PatchArray {
         x = thisIndex.x;
         y = thisIndex.y;
 
-        n_patches.resize(4);
+        neighCandidates.resize(4);
         out_msgs.resize(4);
         in_msgs.resize(4);
+
+        //get pointer to the db from the node group
+        DB = dbProxy.ckLocalBranch()->GetImageDB(); 
     }
+    PatchArray(CkMigrateMessage *msg){}
 
     void SendPatchesToNeighbors() {
         // UP
         if (y > 0)
-            thisProxy(x, y-1).RecvCandidatesFromNeighbors(1, nmy);
+            thisProxy(x, y-1).RecvCandidatesFromNeighbors(1, myCandidates);
 
         // DOWN
-        if (y < dim_y-1)
-            thisProxy(x, y+1).RecvCandidatesFromNeighbors(0, nmy);
+        if (y < arrayYDim-1)
+            thisProxy(x, y+1).RecvCandidatesFromNeighbors(0, myCandidates);
 
         // LEFT
         if (x > 0)
-            thisProxy(x-1, y).RecvCandidatesFromNeighbors(3, nmy);
+            thisProxy(x-1, y).RecvCandidatesFromNeighbors(3, myCandidates);
 
         // RIGHT
-        if (x < dim_x-1)
-            thisProxy(x+1, y).RecvCandidatesFromNeighbors(2, nmy);
+        if (x < arrayXDim-1)
+            thisProxy(x+1, y).RecvCandidatesFromNeighbors(2, myCandidates);
     }
+
+    void ProcessCandidates(int dir, vector<PatchID> patches) {
+      neighCandidates[dir] = patches;
+    }
+
 
     void ComputeMessages() {
         // UP
         if (y > 0)
-            for (int i = 0; i < nmy.size(); ++i)
+            for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[0].size(); ++j)
-                    out_msgs[0][j] += phi(nmy[i]) * psi(nmy[i], n_patches[0]) * (in_msgs[1][i] * in_msgs[2][i] * in_msgs[3][i]);
+                    out_msgs[0][j] += myphis[i] * psi(myCandidates[i], neighCandidates[0][j],0) * (in_msgs[1][i] * in_msgs[2][i] * in_msgs[3][i]);
 
         // DOWN
-        if (y < dim_y-1)
-            for (int i = 0; i < nmy.size(); ++i)
+        if (y < arrayYDim-1)
+
+            for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[1].size(); ++j)
-                    out_msgs[1][j] += phi(nmy[i]) * psi(nmy[i], n_patches[1]) * (in_msgs[0][i] * in_msgs[2][i] * in_msgs[3][i]);
+                    out_msgs[1][j] += myphis[i] * psi(myCandidates[i], neighCandidates[1][j],1) * (in_msgs[0][i] * in_msgs[2][i] * in_msgs[3][i]);
 
         // LEFT
         if (x > 0)
-            for (int i = 0; i < nmy.size(); ++i)
+            for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[2].size(); ++j)
-                    out_msgs[2][j] += phi(nmy[i]) * psi(nmy[i], n_patches[2]) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[3][i]);
+                    out_msgs[2][j] += myphis[i] * psi(myCandidates[i], neighCandidates[2][j],2) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[3][i]);
 
         // RIGHT
-        if (x < dim_x-1)
-            for (int i = 0; i < nmy.size(); ++i)
+        if (x < arrayXDim-1)
+            for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[3].size(); ++j)
-                    out_msgs[3][j] += phi(nmy[i]) * psi(nmy[i], n_patches[3]) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[2][i]);
+                    out_msgs[3][j] += myphis[i] * psi(myCandidates[i], neighCandidates[3][j],3) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[2][i]);
     }
 
-    void SendMessageToNeighbors() {
+    void SendMessagesToNeighbors() {
         // UP
         if (y > 0)
-            thisProxy(x, y-1).RecvMessageFromNeighbor(1, out_msgs[0]);
+            thisProxy(x, y-1).RecvMessageFromNeighbor(iter, 1, out_msgs[0]);
 
         // DOWN
-        if (y < dim_y-1)
-            thisProxy(x, y+1).RecvMessageFromNeighbor(0, out_msgs[1]);
+        if (y < arrayYDim-1)
+            thisProxy(x, y+1).RecvMessageFromNeighbor(iter, 0, out_msgs[1]);
 
         // LEFT
         if (x > 0)
-            thisProxy(x-1, y).RecvMessageFromNeighbor(3, out_msgs[2]);
+            thisProxy(x-1, y).RecvMessageFromNeighbor(iter, 3, out_msgs[2]);
 
         // RIGHT
-        if (x < dim_x-1)
-            thisProxy(x+1, y).RecvMessageFromNeighbor(2, out_msgs[3]);
+        if (x < arrayXDim-1)
+            thisProxy(x+1, y).RecvMessageFromNeighbor(iter, 2, out_msgs[3]);
     }
 
     void InitMsg() {
         // UP
         if (y > 0)
-            out_msgs[0].resize(n_patches[0].size(), 1.0 / n_patches[0].size());
+            out_msgs[0].resize(neighCandidates[0].size(), 1.0 / neighCandidates[0].size());
 
         // DOWN
-        if (y < dim_y-1)
-            out_msgs[1].resize(n_patches[1].size(), 1.0 / n_patches[1].size());
+        if (y < arrayYDim-1)
+            out_msgs[1].resize(neighCandidates[1].size(), 1.0 / neighCandidates[1].size());
 
         // LEFT
         if (x > 0)
-            out_msgs[2].resize(n_patches[2].size(), 1.0 / n_patches[2].size());
+            out_msgs[2].resize(neighCandidates[2].size(), 1.0 / neighCandidates[2].size());
 
         // RIGHT
-        if (x < dim_x-1)
-            out_msgs[3].resize(n_patches[3].size(), 1.0 / n_patches[3].size());
+        if (x < arrayXDim-1)
+            out_msgs[3].resize(neighCandidates[3].size(), 1.0 / neighCandidates[3].size());
     }
 
     void ProcessMsgFromNeighbor(int dir, vector<double> msg) {
@@ -329,14 +300,65 @@ class PatchArray: public CBase_PatchArray {
 
     void GetFinalPatch() {
         patch_t data;
-        contribute(sizeof(patch_t), data, CkReduction::concat, CkCallback(CkIndex_Main::RecvFinalPatch(NULL), mainProxy));
+        contribute(sizeof(patch_t), &data, CkReduction::concat, CkCallback(CkIndex_Main::RecvFinalPatch(NULL), mainProxy));
     }
+
+  private:
+
+    //TODO: reimplement: replaced NORTH,EAST etc 
+    // with 1,2,3,4. may not be correct
+    double psi(int index_me,int index_them, int dir) {
+	/*
+	index_me: pointer to my patch in global array
+	index_them: pointer to neighbor's patch in global array
+	dir: how to go from me to them
+	SIGMA: noise paramter (scalar)
+
+	Assumes overlap of one pixel.
+	*/
+
+      /*
+	int n;
+	double **xi, **xj;
+	double distance = 0;
+
+	xi = global_patches[index_me];
+	xj = global_patches[index_them];
+	n = xi.size();
+	switch(dir) {
+		case 1 :
+			for (int i = 0; i < n; i++) {
+				distance += (xi[0][i] - xj[n-1][i])*(xi[0][i] - xj[n-1][i]);
+			}
+			break;
+		case 2 : 
+			for (int i = 0; i < n; i++) {
+				distance += (xi[n-1][i] - xj[0][i])*(xi[n-1][i] - xj[0][i]);
+			}
+			break;
+		case 3 : 
+			for (int i = 0; i < n; i++ ) {
+				distance += (xi[i][0] - xj[i][n-1])*(xi[i][0] - xj[i][n-1]);
+			}
+			break;
+		case 4 :
+			for (int i = 0; i < n; i++) {
+				distance += (xi[i][n-1] - xj[i][0])*(xi[i][n-1] - xj[i][0]);
+			}
+			break;
+	}
+
+	return exp(-distance/(2*SIGMA*SIGMA));
+  */
+      return 0.0;
+}
+
+
 };
 
 
 int GetFilesFromDir(const string &sFolderName, vector<string> &vFilePaths)
 {
-#include <dirent.h>
   DIR *dir;
   struct dirent *ent;
   if ((dir = opendir (sFolderName.c_str())) != NULL) {
@@ -351,6 +373,22 @@ int GetFilesFromDir(const string &sFolderName, vector<string> &vFilePaths)
       cout << "ERROR:" << sFolderName << " contains files that don't open";
       return FAIL;
   }
+}
+
+
+double phi(Patch *lhs, Patch *rhs,int size) {
+	/*
+   * the patches are represnetd in a 1D array
+   * iterate through each index and calculate distance
+   * and sum to get phi
+	*/
+	double distance = 0;
+
+	for (int i = 0; i < size; i++) {
+	  distance += (lhs[i] - rhs[i])*(lhs[i] - rhs[i]);
+	}
+
+	return exp(-distance/(2*SIGMA*SIGMA));
 }
 
 
