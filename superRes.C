@@ -182,7 +182,9 @@ class PatchArray: public CBase_PatchArray {
         DB = dbProxy.ckLocalBranch()->GetImageDB(); 
     }
     PatchArray(CkMigrateMessage *msg){}
-
+    void SetupPatch()
+    {
+    }
     void SendPatchesToNeighbors() {
         // UP
         if (y > 0)
