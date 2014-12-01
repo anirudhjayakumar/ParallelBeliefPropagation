@@ -20,6 +20,10 @@ using namespace std;
 #define FAIL             1
 #define CONV_PERIOD      5 // convergence test every CONV_PERIOD
 #define CANDIDATE_COUNT 16
+#define NORTH 0
+#define SOUTH 1
+#define WEST  2
+#define EAST  3
 const double TOL = 1.0;
 const double SIGMA = 0.5; // need to update to correct value.
 

@@ -26,8 +26,8 @@ mainchare Main {
 array [2D] PatchArray {
   entry PatchArray(void); //call setup 
 
-  entry void RecvCandidatesFromNeighbors(int dir, vector<PatchID> patches); 
-  entry void RecvMessageFromNeighbor(int itr,int dir,vector<double> msg);
+  entry void RecvCandidatesFromNeighbors(int from, vector<PatchID> patches); 
+  entry void RecvMessageFromNeighbor(int itr,int from,vector<double> msg);
   entry void GetFinalPatch(); // calls cb RecvFinalPatch on mainProxy
   entry void Setup() {
     serial "setup" {
@@ -35,31 +35,31 @@ array [2D] PatchArray {
       SendPatchesToNeighbors(); 
     }
 
-    if (y > 0) {
-      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
-      serial "Process Patch y gt" {
-        ProcessCandidates(dir, indices);
+    if (j > 0) { //recv from WEST
+      when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
+      serial "Process Patch from WEST" {
+        ProcessCandidates(from, indices);
       }
     }
 
-    if (y < arrayYDim-1) {
-      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
-      serial "Process Patch y lt" {
-        ProcessCandidates(dir, indices);
+    if (j < arrayYDim-1) { //recv from EAST
+      when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
+      serial "Process Patch from EAST" {
+        ProcessCandidates(from, indices);
       }
     }
 
-    if (x > 0) {
-      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
-      serial "Process Patch x gt" {
-        ProcessCandidates(dir, indices);
+    if (i > 0) {  //recv from north. 
+        when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
+      serial "Process Patch from NORTH" {
+        ProcessCandidates(from, indices);
       }
     }
 
-    if (x < arrayXDim-1) {
-      when RecvCandidatesFromNeighbors(int dir, std::vector<PatchID> indices)
-      serial "Process Patch x lt" {
-        ProcessCandidates(dir, indices);
+    if (i < arrayXDim-1) { //recv from south. 
+      when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
+      serial "Process Patch from SOUTH" {
+        ProcessCandidates(from, indices);
       }
     }
 
@@ -80,31 +80,27 @@ array [2D] PatchArray {
         SendMessagesToNeighbors();
       }
 
-      // UP
-      if (y > 0) {
-        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message north" {
-           ProcessMsgFromNeighbor(dir, msg);
+      if (j > 0) {
+        when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message west" {
+           ProcessMsgFromNeighbor(from, msg);
         }
       }
 
-      // DOWN
-      if (y < arrayYDim-1) {
-        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message south" {
-          ProcessMsgFromNeighbor(dir, msg);
+      if (j < arrayYDim-1) {
+        when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message east" {
+          ProcessMsgFromNeighbor(from, msg);
         }
       }
 
-      // LEFT
-      if (x > 0) {
-        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message west" {
-          ProcessMsgFromNeighbor(dir, msg);
+      if (i > 0) {
+        when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message north" {
+          ProcessMsgFromNeighbor(from, msg);
         }
       }
 
-      // RIGHT
-      if (x < arrayXDim-1) {
-        when RecvMessageFromNeighbor[iter](int itr, int dir, vector<double> msg) serial "Process message east" {
-          ProcessMsgFromNeighbor(dir, msg);
+      if (i < arrayXDim-1) {
+        when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message south" {
+          ProcessMsgFromNeighbor(from, msg);
         }
       }
     }

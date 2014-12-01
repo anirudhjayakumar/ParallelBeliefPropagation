@@ -169,7 +169,7 @@ private:
     vector< vector<double> >  in_msgs, out_msgs;
     vector<double> beliefs;
     std::vector<double> myphis;
-    int x, y;
+    int i, j;
     Patch myPatch;
     ImageDB *DB;
     int iter;
@@ -178,8 +178,8 @@ public:
     PatchArray() {
         __sdag_init();
 
-        x = thisIndex.x;
-        y = thisIndex.y;
+        i = thisIndex.x;
+        j = thisIndex.y;
 
         neighCandidates.resize(4);
         out_msgs.resize(4);
@@ -251,93 +251,97 @@ public:
     }
 
     void SendPatchesToNeighbors() {
-        // UP
-        if (y > 0)
-            thisProxy(x, y-1).RecvCandidatesFromNeighbors(1, myCandidates);
+        // EAST
+        if (j > 0)
+            thisProxy(i, j-1).RecvCandidatesFromNeighbors(EAST, myCandidates);
 
-        // DOWN
-        if (y < arrayYDim-1)
-            thisProxy(x, y+1).RecvCandidatesFromNeighbors(0, myCandidates);
+        // WEST
+        if (j < arrayYDim-1)
+            thisProxy(i, j+1).RecvCandidatesFromNeighbors(WEST, myCandidates);
 
-        // LEFT
-        if (x > 0)
-            thisProxy(x-1, y).RecvCandidatesFromNeighbors(3, myCandidates);
+        // SOUTH
+        if (i > 0)
+            thisProxy(i-1, j).RecvCandidatesFromNeighbors(SOUTH, myCandidates);
 
-        // RIGHT
-        if (x < arrayXDim-1)
-            thisProxy(x+1, y).RecvCandidatesFromNeighbors(2, myCandidates);
+        // NORTH
+        if (i < arrayXDim-1)
+            thisProxy(i+1, j).RecvCandidatesFromNeighbors(NORTH, myCandidates);
     }
 
-    void ProcessCandidates(int dir, vector<PatchID> patches) {
-        neighCandidates[dir] = patches;
+    void ProcessCandidates(int from, vector<PatchID> patches) {
+        neighCandidates[from] = patches;
     }
 
 
     void ComputeMessages() {
-        // UP
-        if (y > 0)
+        // WEST
+        if (j > 0)
             for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[0].size(); ++j)
-                    out_msgs[0][j] += myphis[i] * psi(myCandidates[i], neighCandidates[0][j],0) * (in_msgs[1][i] * in_msgs[2][i] * in_msgs[3][i]);
+                for (int j = 0; j < out_msgs[WEST].size(); ++j)
+                    out_msgs[WEST][j] += myphis[i] * psi(myCandidates[i], neighCandidates[WEST][j],WEST) * (in_msgs[EAST][i]
+                    * in_msgs[SOUTH][i] * in_msgs[NORTH][i]);
 
-        // DOWN
-        if (y < arrayYDim-1)
+        // EAST
+        if (j < arrayYDim-1)
 
             for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[1].size(); ++j)
-                    out_msgs[1][j] += myphis[i] * psi(myCandidates[i], neighCandidates[1][j],1) * (in_msgs[0][i] * in_msgs[2][i] * in_msgs[3][i]);
+                for (int j = 0; j < out_msgs[EAST].size(); ++j)
+                    out_msgs[EAST][j] += myphis[i] * psi(myCandidates[i], neighCandidates[EAST][j],EAST) *
+                    (in_msgs[NORTH][i] * in_msgs[SOUTH][i] * in_msgs[WEST][i]);
 
-        // LEFT
-        if (x > 0)
+        // NORTH
+        if (i > 0)
             for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[2].size(); ++j)
-                    out_msgs[2][j] += myphis[i] * psi(myCandidates[i], neighCandidates[2][j],2) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[3][i]);
+                for (int j = 0; j < out_msgs[NORTH].size(); ++j)
+                    out_msgs[NORTH][j] += myphis[i] * psi(myCandidates[i], neighCandidates[NORTH][j],NORTH) *
+                    (in_msgs[EAST][i] * in_msgs[WEST][i] * in_msgs[SOUTH][i]);
 
-        // RIGHT
-        if (x < arrayXDim-1)
+        // SOUTH
+        if (i < arrayXDim-1)
             for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[3].size(); ++j)
-                    out_msgs[3][j] += myphis[i] * psi(myCandidates[i], neighCandidates[3][j],3) * (in_msgs[0][i] * in_msgs[1][i] * in_msgs[2][i]);
+                for (int j = 0; j < out_msgs[SOUTH].size(); ++j)
+                    out_msgs[SOUTH][j] += myphis[i] * psi(myCandidates[i], neighCandidates[SOUTH][j],SOUTH) *
+                    (in_msgs[NORTH][i] * in_msgs[WEST][i] * in_msgs[EAST][i]);
     }
 
     void SendMessagesToNeighbors() {
-        // UP
-        if (y > 0)
-            thisProxy(x, y-1).RecvMessageFromNeighbor(iter, 1, out_msgs[0]);
+        // EAST
+        if (j > 0)
+            thisProxy(i, j-1).RecvMessageFromNeighbor(iter, EAST, out_msgs[WEST]);
 
-        // DOWN
-        if (y < arrayYDim-1)
-            thisProxy(x, y+1).RecvMessageFromNeighbor(iter, 0, out_msgs[1]);
+        // WEST
+        if (j < arrayYDim-1)
+            thisProxy(i, j+1).RecvMessageFromNeighbor(iter, WEST, out_msgs[EAST]);
 
-        // LEFT
-        if (x > 0)
-            thisProxy(x-1, y).RecvMessageFromNeighbor(iter, 3, out_msgs[2]);
+        // SOUTH
+        if (i > 0)
+            thisProxy(i-1, j).RecvMessageFromNeighbor(iter, SOUTH, out_msgs[NORTH]);
 
-        // RIGHT
-        if (x < arrayXDim-1)
-            thisProxy(x+1, y).RecvMessageFromNeighbor(iter, 2, out_msgs[3]);
+        // NORTH
+        if (i < arrayXDim-1)
+            thisProxy(i+1, j).RecvMessageFromNeighbor(iter,NORTH , out_msgs[SOUTH]);
     }
 
     void InitMsg() {
-        // UP
-        if (y > 0)
-            out_msgs[0].resize(neighCandidates[0].size(), 1.0 / neighCandidates[0].size());
+        // WEST
+        if (j > 0)
+            out_msgs[WEST].resize(neighCandidates[WEST].size(), 1.0 / neighCandidates[WEST].size());
 
-        // DOWN
-        if (y < arrayYDim-1)
-            out_msgs[1].resize(neighCandidates[1].size(), 1.0 / neighCandidates[1].size());
+        // EAST
+        if (j < arrayYDim-1)
+            out_msgs[EAST].resize(neighCandidates[EAST].size(), 1.0 / neighCandidates[EAST].size());
 
-        // LEFT
-        if (x > 0)
-            out_msgs[2].resize(neighCandidates[2].size(), 1.0 / neighCandidates[2].size());
+        // NORTH
+        if (i > 0)
+            out_msgs[NORTH].resize(neighCandidates[NORTH].size(), 1.0 / neighCandidates[NORTH].size());
 
-        // RIGHT
-        if (x < arrayXDim-1)
-            out_msgs[3].resize(neighCandidates[3].size(), 1.0 / neighCandidates[3].size());
+        // SOUTH
+        if (i < arrayXDim-1)
+            out_msgs[SOUTH].resize(neighCandidates[SOUTH].size(), 1.0 / neighCandidates[SOUTH].size());
     }
 
-    void ProcessMsgFromNeighbor(int dir, vector<double> msg) {
-        in_msgs[dir] = msg;
+    void ProcessMsgFromNeighbor(int from, vector<double> msg) {
+        in_msgs[from] = msg;
     }
 
     void ConvergenceTest() {
