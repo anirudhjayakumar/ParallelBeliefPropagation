@@ -29,17 +29,17 @@ const double SIGMA = 0.5; // need to update to correct value.
 
 
 //typedefs 
-typedef pair<double*,double*> CandidatePair;
+typedef vector<double> Patch;
+typedef pair<Patch,Patch> CandidatePair; // low, high
 typedef vector<CandidatePair> ImageData;
 typedef unsigned int PatchID; 
-typedef double * Patch;
 
+typedef struct {
+    int i, j;
+    PatchID id;
+} patch_t;
 
-// utility functions
-int GetFilesFromDir(const string &sFolderName, vector<string> &);
-double phi(Patch lhs, Patch rhs,int size);
-
-
+typedef ImageData::iterator DBIter;
 
 
 struct ImageDB {
@@ -54,23 +54,16 @@ struct ImageDB {
 
   Patch GetLowResPatch(int index)
   {
-    if(index < imageData.size())
-      return imageData[index].first;
-    else 
-      return NULL;
+    return imageData[index].first;
   }
   Patch GetHighResPatch(int index)
   {
-    if(index < imageData.size())
-      return imageData[index].second;
-    else
-      return NULL;
+    return imageData[index].second;
   }
 };
 
-typedef struct {
-    int i, j;
-    PatchID id;
-} patch_t;
 
-typedef ImageData::iterator DBIter;
+// utility functions
+int WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements);
+int GetFilesFromDir(const string &sFolderName, vector<string> &);
+double phi(Patch lhs, Patch rhs,int size);

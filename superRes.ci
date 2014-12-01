@@ -24,7 +24,7 @@ mainchare Main {
 };
 
 array [2D] PatchArray {
-  entry PatchArray(void); //call setup 
+  entry PatchArray(vector<Patch>); //call setup 
 
   entry void RecvCandidatesFromNeighbors(int from, vector<PatchID> patches); 
   entry void RecvMessageFromNeighbor(int itr,int from,vector<double> msg);
