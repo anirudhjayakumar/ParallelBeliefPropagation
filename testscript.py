@@ -35,6 +35,8 @@ small = blurred[::2, ::2]
 
 #Use cubic interpolation to upsample image
 newbig = sp.ndimage.zoom(small, 2, order=3)
+lowbig = ndimage.gaussian_filter(mat, 3)
+newbig = newbig - lowbig
 
 #Break upsampled image into blocks after subtracting extra pixels
 PATCH_SIZE = 5
@@ -47,17 +49,22 @@ blocks = blockshaped(newbig, PATCH_SIZE, PATCH_SIZE)
 lowpass = ndimage.gaussian_filter(mat, 3)
 highpass = mat - lowpass
 highpass = highpass[:endx, :endy]
+
+#Break high frequency image into blocks
 shp = blocks.shape
+numblocksx = (endx-2)/shp[1]
+numblocksy = (endy-2)/shp[2]
 highblocks = np.zeros((shp[0], shp[1]+2, shp[2]+2))
-for i in range(0, highblocks.shape[1]):
-    starti = i*PATCH_SIZE
-    endi = starti + PATCH_SIZE + 2
-    for j in range(0, highblocks.shape[2]):
-        startj = j*PATCH_SIZE
-        endj = startj + PATCH_SIZE + 2
-        highblocks[i*highblocks.shape[1] + j] = \
-            highpass[starti:endi, startj:endj]
+for i in range(numblocksx):
+    for j in range(numblocksy):
+        sx = i * shp[1]
+        ex = sx + shp[1] + 1
+        sy = j * shp[2]
+        ey = sy + shp[2] + 1
+        highblocks[i*numblocksy + j] = highpass[sx:ex+1, sy:ey+1]
 
 #Contrast normalize the image somewhere
-#MxM vs NxN
 #Cut out the most low-frequency patches
+
+#Write output to file
+#for i in range
