@@ -378,52 +378,56 @@ public:
 
 private:
 
-    //TODO: reimplement: replaced NORTH,EAST etc
-    // with 1,2,3,4. may not be correct
-    double psi(int index_me,int index_them, int dir) {
+	double psi(int index_me, int index_them, int from) {
         /*
         index_me: pointer to my patch in global array
         index_them: pointer to neighbor's patch in global array
-        dir: how to go from me to them
+        from: how to go from receiver to sender
         SIGMA: noise paramter (scalar)
-
         Assumes overlap of one pixel.
         */
-
-        /*
+		//Indices should work with, but have not been fully tested.
+        
         int n;
-        double **xi, **xj;
         double distance = 0;
 
-        xi = global_patches[index_me];
-        xj = global_patches[index_them];
-        n = xi.size();
-        switch(dir) {
-        	case 1 :
+		Patch xi = DB->GetHighResPatch(index_me);
+		Patch xj = DB->GetHighResPatch(index_them);
+        n = sqrt(xi.size());
+		int myInd, theirInd;
+
+        switch(from) {
+        	case NORTH :
         		for (int i = 0; i < n; i++) {
-        			distance += (xi[0][i] - xj[n-1][i])*(xi[0][i] - xj[n-1][i]);
+					myInd = i;
+					theirInd = (n-1)*n + i;
+        			distance += (xi[myInd] - xj[theirInd]) * (xi[myInd] - xj[theirInd]);
         		}
         		break;
-        	case 2 :
+        	case SOUTH :
         		for (int i = 0; i < n; i++) {
-        			distance += (xi[n-1][i] - xj[0][i])*(xi[n-1][i] - xj[0][i]);
+					myInd = (n-1)*n + i;
+					theirInd = i;
+        			distance += (xi[myInd] - xj[theirInd]) * (xi[myInd] - xj[theirInd]);
         		}
         		break;
-        	case 3 :
+        	case WEST :
         		for (int i = 0; i < n; i++ ) {
-        			distance += (xi[i][0] - xj[i][n-1])*(xi[i][0] - xj[i][n-1]);
+					myInd = n*i;
+					theirInd = n*(i+1) - 1;
+        			distance += (xi[myInd] - xj[theirInd]) * (xi[myInd] - xj[theirInd]);
         		}
         		break;
-        	case 4 :
+        	case EAST :
         		for (int i = 0; i < n; i++) {
-        			distance += (xi[i][n-1] - xj[i][0])*(xi[i][n-1] - xj[i][0]);
+					myInd = n*(i+1) - 1;
+					theirInd = n*i;
+        			distance += (xi[myInd] - xj[theirInd]) * (xi[myInd] - xj[theirInd]);
         		}
         		break;
         }
 
         return exp(-distance/(2*SIGMA*SIGMA));
-         */
-        return 0.0;
     }
 
 

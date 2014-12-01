@@ -1,4 +1,4 @@
-CHARMC=/dcsdata/home/anirudh/code/charm_master/netlrts-linux-x86_64/bin/charmc $(OPTS)
+CHARMC=~/charm-6.6.0/net-darwin-x86_64/bin/charmc $(OPTS)
 TESTOPTS = ++local
  
 OBJS = superRes.o
