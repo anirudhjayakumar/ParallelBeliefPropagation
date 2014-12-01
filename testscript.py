@@ -23,7 +23,7 @@ def blockshaped(arr, nrows, ncols):
                .reshape(-1, nrows, ncols))
 
 
-fname = 'cat.jpg'
+fname = 'cat.png'
 #Read in image (mat file in this case)
 mat = mpimg.imread(fname)[:, :, 0]
 
@@ -68,4 +68,11 @@ for i in range(numblocksx):
 #Cut out the most low-frequency patches
 
 #Write output to file
-#for i in range
+fname = 'tmp.txt'
+with open(fname, 'w') as f:
+    header = '%d %d %d\n' % (nblocks, (M*N), ((M+2)*(N+2)))
+    f.write(header)
+    for i in range(highblocks.shape[0]):
+        s1 = map(str, highblocks[i].flatten())
+        s2 = map(str, blocks[i].flatten())
+        f.write('%s %s\n' % (" ".join(s1), " ".join(s2)))
