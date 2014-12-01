@@ -20,8 +20,13 @@ using namespace std;
 #define FAIL             1
 #define CONV_PERIOD      5 // convergence test every CONV_PERIOD
 #define CANDIDATE_COUNT 16
-const double TOL = .00001; //Tolerance for convergence test
+#define NORTH 0
+#define SOUTH 1
+#define WEST  2
+#define EAST  3
+
 const double SIGMA = 0.1; // Determined via trial and error, may need to adjust this more
+const double TOL = .00001; //Tolerance for convergence test
 
 
 //typedefs 
