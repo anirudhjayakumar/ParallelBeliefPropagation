@@ -39,11 +39,12 @@ lowbig = ndimage.gaussian_filter(mat, 3)
 newbig = newbig - lowbig
 
 #Break upsampled image into blocks after subtracting extra pixels
-PATCH_SIZE = 5
-endx = -((newbig.shape[0]-2) % PATCH_SIZE) + newbig.shape[0]
-endy = -((newbig.shape[1]-2) % PATCH_SIZE) + newbig.shape[1]
+M = 5
+N = 5
+endx = -((newbig.shape[0]-2) % M) + newbig.shape[0]
+endy = -((newbig.shape[1]-2) % N) + newbig.shape[1]
 newbig = newbig[1:endx-1, 1:endy-1]
-blocks = blockshaped(newbig, PATCH_SIZE, PATCH_SIZE)
+blocks = blockshaped(newbig, M, N)
 
 #Make high frequency image and break it into blocks
 lowpass = ndimage.gaussian_filter(mat, 3)
@@ -51,16 +52,16 @@ highpass = mat - lowpass
 highpass = highpass[:endx, :endy]
 
 #Break high frequency image into blocks
-shp = blocks.shape
-numblocksx = (endx-2)/shp[1]
-numblocksy = (endy-2)/shp[2]
-highblocks = np.zeros((shp[0], shp[1]+2, shp[2]+2))
+nblocks = blocks.shape[0]
+numblocksx = (endx-2)/M
+numblocksy = (endy-2)/N
+highblocks = np.zeros((nblocks, M+2, N+2))
 for i in range(numblocksx):
     for j in range(numblocksy):
-        sx = i * shp[1]
-        ex = sx + shp[1] + 1
-        sy = j * shp[2]
-        ey = sy + shp[2] + 1
+        sx = i * M
+        ex = sx + M + 1
+        sy = j * N
+        ey = sy + N + 1
         highblocks[i*numblocksy + j] = highpass[sx:ex+1, sy:ey+1]
 
 #Contrast normalize the image somewhere
