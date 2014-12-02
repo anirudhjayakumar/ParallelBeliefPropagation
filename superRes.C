@@ -9,68 +9,45 @@
 /*readonly*/ int arrayXDim;
 /*readonly*/ int arrayYDim;
 
-class Main: public CBase_Main {
-public:
-    Main(CkArgMsg *m) {
-        //print usage details
-        if(m->argc != 3)
-        {
-            CkPrintf("Usage: ./charmrun +p4 ./superRes <db folder path> <input image path>");
-            CkExit();
-        }
-
-        mainProxy = thisProxy;
-
-        //get the training set directory
-        const string sDBFolderPath = m->argv[1];
-        //get the input image path
-        const string sInputImagePath = m->argv[2];
-        //construct node group
-        dbProxy = CProxy_DBNode::ckNew();
-        dbProxy.FillDB(sDBFolderPath);
-        //construct patcharray
-        // placeholder dimensions
-        arrayXDim = 10;
-        arrayYDim = 10;
-        CkArrayOptions opts(arrayXDim, arrayYDim);
-        arrayProxy = CProxy_PatchArray::ckNew(opts);
-
-    }
-
-
-    void CheckConverged(double norm) {
-        if (norm < TOL) {
-            arrayProxy.GetFinalPatch();
-        }
-        else {
-            arrayProxy.Run();
-        }
-    }
-
-    void RecvFinalPatch(CkReductionMsg *msg) {
-        patch_t *p = (patch_t*)msg->getData();
-        int num_elements = msg->getSize() / sizeof(patch_t);
-    }
-
-    void DB_Populated()
-    {
-        arrayProxy.Setup();
-    }
-};
-
 class DBNode: public CBase_DBNode
 {
 private:
-    ImageDB db;
+    struct ImageDB db;
 public:
     DBNode()
     {
     }
 
-    int FillDB(const string &sTrainingSetDirPath)
+    static vector<Patch> ProcessImage(const string &sImagePath, int *dimX, int *dimY)
+    {
+        ifstream imageFile;
+        imageFile.open(sImagePath.c_str());
+
+        int totalPatchPerFile, patchSize;
+        imageFile >> totalPatchPerFile;
+        imageFile >> *dimX >> *dimY;
+        imageFile >> patchSize;
+
+        vector<Patch> patches;
+        for (int i = 0; i < totalPatchPerFile; ++i)
+        {
+            Patch pImage(patchSize);
+
+            for (int j = 0; j < patchSize; ++j)
+            {
+                imageFile >> pImage[j];
+            }
+
+            patches.push_back(pImage);
+        }
+
+        return patches;
+    }
+
+    void FillDB(const string &sTrainingSetDirPath)
     {
         vector<string> sFiles;
-        if(GetFilesFromDir(sTrainingSetDirPath,sFiles) == FAIL)
+        if (GetFilesFromDir(sTrainingSetDirPath,sFiles) == FAIL)
         {
             CkExit();
         }
@@ -79,9 +56,8 @@ public:
         //in all the nodes.
         sort(sFiles.begin(),sFiles.end());
 
-        for(vector<string>::iterator itr = sFiles.begin(); itr != sFiles.end(); ++itr)
+        for (vector<string>::iterator itr = sFiles.begin(); itr != sFiles.end(); ++itr)
         {
-
             ifstream imageFile;
             imageFile.open(itr->c_str());
             int totalPatchPerFile,lowResSize,highResSize;
@@ -98,13 +74,13 @@ public:
                 imageFile >> highResSize;
 
                 //check if all files in the training set have same patch size
-                if((db.nImageFiles > 0 && (db.lowResSize != lowResSize || db.highResSize != highResSize)))
+                if ((db.nImageFiles > 0 && (db.lowResSize != lowResSize || db.highResSize != highResSize)))
                 {
                     cout << "ERROR: DB input patch size don't match across inputs" << endl;
-                    return FAIL;
+                    // return FAIL;
                 }
 
-                if(db.nImageFiles == 0)
+                if (db.nImageFiles == 0)
                 {
                     db.lowResSize = lowResSize;
                     db.highResSize = highResSize;
@@ -113,17 +89,19 @@ public:
                 db.nImageFiles++;
                 for (int i=0; i < totalPatchPerFile; ++i)
                 {
-                    Patch pLowRes  = new double[db.lowResSize];
-                    Patch pHighRes = new double[db.highResSize];
+                    Patch pLowRes(db.lowResSize);
+                    Patch pHighRes(db.highResSize);
+
                     for (int lowResIndex = 0; lowResIndex < db.lowResSize; ++lowResIndex)
                     {
                         imageFile >> pLowRes[lowResIndex];
-
                     }
+
                     for (int highResIndex = 0; highResIndex < db.highResSize; ++highResIndex)
                     {
                         imageFile >> pHighRes[highResIndex];
                     }
+
                     CandidatePair pair = make_pair(pLowRes,pHighRes);
                     db.imageData.push_back(pair);
                 }
@@ -131,8 +109,7 @@ public:
         }
 
         contribute(CkCallback(CkReductionTarget(Main, DB_Populated), mainProxy));
-        return SUCCESS;
-
+        // return SUCCESS;
     }
 
     ImageDB *GetImageDB()
@@ -144,22 +121,18 @@ public:
     {
         cout << "=================DB Begin==================" << endl;
         cout << db.lowResSize << " " << db.highResSize << endl;
-        for(DBIter itr = db.imageData.begin(); itr != db.imageData.end(); ++itr)
+        for (DBIter itr = db.imageData.begin(); itr != db.imageData.end(); ++itr)
         {
             CandidatePair &dbItem = *itr;
-            for(int i =0; i<db.lowResSize; ++i)
+            for (int i =0; i<db.lowResSize; ++i)
                 cout << dbItem.first[i] << " ";
-            for(int i=0; i<db.highResSize; ++i)
+            for (int i=0; i<db.highResSize; ++i)
                 cout << dbItem.second[i] << " ";
             cout << endl;
         }
         cout << "=================DB End====================" << endl;
     }
-
-
 };
-
-
 
 class PatchArray: public CBase_PatchArray {
     PatchArray_SDAG_CODE
@@ -175,7 +148,7 @@ private:
     int iter;
 
 public:
-    PatchArray() {
+    PatchArray(vector<Patch> img) {
         __sdag_init();
 
         i = thisIndex.x;
@@ -185,8 +158,7 @@ public:
         out_msgs.resize(4);
         in_msgs.resize(4);
 
-        //get pointer to the db from the node group
-        DB = dbProxy.ckLocalBranch()->GetImageDB();
+        myPatch = img[i + arrayXDim*j];
     }
     PatchArray(CkMigrateMessage *msg) {}
 
@@ -202,6 +174,9 @@ public:
         int index[CANDIDATE_COUNT];  // Unordered indices of best candidates
         double distance[CANDIDATE_COUNT];  // Distance from me to index[i]
         int order[CANDIDATE_COUNT];  // Order of index values
+
+        // Get pointer to the db from the node group
+        DB = dbProxy.ckLocalBranch()->GetImageDB();
 
         // Fill with the first CANDIDATE_COUNT
         for (int i = 0; i < CANDIDATE_COUNT; i++) {
@@ -363,7 +338,7 @@ public:
 
     double computeBelief(int index) {
         double belief = myphis[index];
-        for(int i=0; i<4; i++) {
+        for (int i=0; i<4; i++) {
             belief = belief * in_msgs[i][index];
         }
         return belief;
@@ -437,6 +412,83 @@ private:
 
 };
 
+class Main: public CBase_Main {
+private:
+    string sOutputImagePath;
+
+public:
+    Main(CkArgMsg *m) {
+        // Print usage details
+        if (m->argc != 4)
+        {
+            CkPrintf("Usage: ./charmrun +p4 ./superRes <db folder path> <input image path> <output image path>");
+            CkExit();
+        }
+
+        mainProxy = thisProxy;
+
+        // Get the training set directory
+        const string sDBFolderPath = m->argv[1];
+        // Get the input image path
+        const string sInputImagePath = m->argv[2];
+        // Get the output image path
+        sOutputImagePath = m->argv[3];
+
+        // Construct node group
+        dbProxy = CProxy_DBNode::ckNew();
+        dbProxy.FillDB(sDBFolderPath);
+
+        // Construct patcharray
+        vector<Patch> img = DBNode::ProcessImage(sInputImagePath, &arrayXDim, &arrayYDim);
+
+        // Construct patcharray
+        CkArrayOptions opts(arrayXDim, arrayYDim);
+        arrayProxy = CProxy_PatchArray::ckNew(img, opts);
+    }
+
+
+    void CheckConverged(double norm) {
+        if (norm < TOL) {
+            arrayProxy.GetFinalPatch();
+        } else {
+            arrayProxy.Run();
+        }
+    }
+
+    void RecvFinalPatch(CkReductionMsg *msg) {
+        patch_t *p = (patch_t*)msg->getData();
+        int num_elements = msg->getSize() / sizeof(patch_t);
+
+        ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
+        WriteFinalPatches(sOutputImagePath, DB, p, num_elements);
+    }
+
+    void DB_Populated()
+    {
+        arrayProxy.Setup();
+    }
+};
+
+int WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements)
+{
+    ofstream imageFile;
+    imageFile.open(sOutputImagePath.c_str());
+
+    int patchSize = db->imageData[0].second.size();
+
+    imageFile << num_elements << endl;
+    imageFile << arrayXDim << " " << arrayYDim << endl;
+    imageFile << patchSize << endl;
+
+    for (int i = 0; i < num_elements; ++i) {
+        Patch r = db->imageData[p[i].id].second;
+
+        for (int j = 0; j < patchSize; ++j) {
+            imageFile << r[j] << " ";
+        }
+        imageFile << endl;
+    }
+}
 
 int GetFilesFromDir(const string &sFolderName, vector<string> &vFilePaths)
 {
@@ -471,10 +523,5 @@ double phi(Patch lhs, Patch rhs,int size) {
 
     return exp(-distance/(2*SIGMA*SIGMA));
 }
-
-
-
-
-
 
 #include "SuperResolution.def.h"
