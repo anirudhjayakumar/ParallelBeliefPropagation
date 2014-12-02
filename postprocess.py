@@ -6,6 +6,7 @@ import scipy.misc
 from scipy import ndimage
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import matplotlib.cm as cm
 
 def process_output(infile, imgfile):
     '''
@@ -41,9 +42,15 @@ def process_output(infile, imgfile):
 
             mat2[row*bdim:(row+1)*bdim, col*bdim:(col+1)*bdim] = data
 
+    plt.figure()
+    plt.imshow(mat, cmap=cm.Greys_r)
+    plt.title('Before')
+
     mat = mat + mat2
 
-    plt.imshow(mat)
+    plt.figure()
+    plt.imshow(mat, cmap=cm.Greys_r)
+    plt.title('After')
     plt.show()
     
     return mat
