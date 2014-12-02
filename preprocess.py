@@ -37,6 +37,7 @@ def process_file(inname, outname):
     #Use cubic interpolation to upsample image
     newbig = sp.ndimage.zoom(small, 2, order=3)
     lowbig = ndimage.gaussian_filter(mat, 3)
+    newbig = newbig[:lowbig.shape[0], :lowbig.shape[1]]
     newbig = newbig - lowbig
 
     #Break upsampled image into blocks after subtracting extra pixels
