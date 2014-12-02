@@ -476,13 +476,12 @@ void WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, 
 
     int patchSize = db->imageData[0].second.size();
 
-    imageFile << num_elements << endl;
-    imageFile << arrayXDim << " " << arrayYDim << endl;
-    imageFile << patchSize << endl;
+    //imageFile << num_elements << endl;  //Not needed by postprocessing script
+    imageFile << arrayXDim << " " << arrayYDim << " " << patchSize << endl;
 
     for (int i = 0; i < num_elements; ++i) {
         Patch r = db->imageData[p[i].id].second;
-
+		imageFile << p[i].i << " " << p[i].j << " ";
         for (int j = 0; j < patchSize; ++j) {
             imageFile << r[j] << " ";
         }
