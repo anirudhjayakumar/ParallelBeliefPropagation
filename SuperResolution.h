@@ -65,6 +65,6 @@ struct ImageDB {
 
 
 // utility functions
-int WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements);
+void WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements);
 int GetFilesFromDir(const string &sFolderName, vector<string> &);
 double phi(Patch lhs, Patch rhs,int size);

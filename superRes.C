@@ -469,7 +469,7 @@ public:
     }
 };
 
-int WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements)
+void WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements)
 {
     ofstream imageFile;
     imageFile.open(sOutputImagePath.c_str());
