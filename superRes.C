@@ -58,8 +58,10 @@ public:
 
         for (vector<string>::iterator itr = sFiles.begin(); itr != sFiles.end(); ++itr)
         {
+            if(*itr == "." || *itr == "..") continue;
             ifstream imageFile;
-            imageFile.open(itr->c_str());
+            string sFilePath = sTrainingSetDirPath + "/" + itr->c_str();
+            imageFile.open(sFilePath.c_str());
             int totalPatchPerFile,lowResSize,highResSize;
 
             /* open the file, read the meta data(total patches,
@@ -72,7 +74,6 @@ public:
                 imageFile >> totalPatchPerFile;
                 imageFile >> lowResSize;
                 imageFile >> highResSize;
-
                 //check if all files in the training set have same patch size
                 if ((db.nImageFiles > 0 && (db.lowResSize != lowResSize || db.highResSize != highResSize)))
                 {
