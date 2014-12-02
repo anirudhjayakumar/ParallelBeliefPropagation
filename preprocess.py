@@ -89,6 +89,7 @@ def main():
     
     nblocks = 0
     for fname in innames:
+        print 'Working on ' + fname
         tmp, out1, out2 = process_file(fname, outname)
         nblocks += tmp
     
