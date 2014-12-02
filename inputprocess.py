@@ -23,34 +23,42 @@ def blockshaped(arr, nrows, ncols):
                .reshape(-1, nrows, ncols))
 
 
-fname = 'cat.png'
-#Read in image (mat file in this case)
-mat = mpimg.imread(fname)[:, :, 0]
+def process_input(infile, outfile):
+    #Read in image (mat file in this case)
+    mat = mpimg.imread(infile)[:, :, 0]
 
-#Upsample and high-pass filter
-mat = sp.ndimage.zoom(mat, 2, order=3)
-lowpass = ndimage.gaussian_filter(mat, 3)
-mat = mat - lowpass
+    #Upsample and high-pass filter
+    mat = sp.ndimage.zoom(mat, 2, order=3)
+    lowpass = ndimage.gaussian_filter(mat, 3)
+    mat = mat - lowpass
 
-#Break image into blocks after subtracting extra pixels
-M = 5
-N = 5
-endx = -(mat.shape[0] % M) + mat.shape[0]
-endy = -(mat.shape[1] % N) + mat.shape[1]
-mat = mat[:endx, :endy]
-blocks = blockshaped(mat, M, N)
+    #Break image into blocks after subtracting extra pixels
+    M = 5
+    N = 5
+    endx = -(mat.shape[0] % M) + mat.shape[0]
+    endy = -(mat.shape[1] % N) + mat.shape[1]
+    mat = mat[:endx, :endy]
+    blocks = blockshaped(mat, M, N)
 
-#Contrast normalize the image somewhere
+    #Contrast normalize the image somewhere
 
-#Write output to file
-fname = 'tmp.txt'
-nrows = endx / M
-ncols = endy / N
-m2 = M*N
-with open(fname, 'w') as f:
-    header = '%d %d\n' % (nrows, ncols)
-    f.write(header)
-    for i in range(nrows):
-        for j in range(ncols):
-            s = map(str, blocks[i*ncols + j].flatten())
-            f.write('%d %d %d %s\n' % (i, j, m2, " ".join(s)))
+    #Write output to file
+    nrows = endx / M
+    ncols = endy / N
+    m2 = M*N
+    with open(outfile, 'w') as f:
+        header = '%d %d\n' % (nrows, ncols)
+        f.write(header)
+        for i in range(nrows):
+            for j in range(ncols):
+                s = map(str, blocks[i*ncols + j].flatten())
+                f.write('%d %d %d %s\n' % (i, j, m2, " ".join(s)))
+
+
+def main():
+    inname = 'cat.png'
+    outname = 'block_input.txt'
+    process_input(inname, outname)
+    
+
+if __name__ == '__main__': main()
