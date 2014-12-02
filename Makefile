@@ -1,4 +1,4 @@
-CHARMC=~/charm-6.6.0/net-darwin-x86_64/bin/charmc $(OPTS)
+CHARMC=~/code/charm_master/netlrts-linux-x86_64/bin/charmc $(OPTS)
 TESTOPTS = ++local
  
 OBJS = superRes.o
@@ -7,7 +7,7 @@ OBJS = superRes.o
 all: superRes superRes_prj
  
 superRes: $(OBJS)
-	$(CHARMC) -O3 -language charm++ -o superRes $(OBJS)
+	$(CHARMC) -g -language charm++ -o superRes $(OBJS)
  
 superRes_prj: $(OBJS)
 	$(CHARMC) -O3 -language charm++ -tracemode projections -lz -o superRes.prj $(OBJS)
