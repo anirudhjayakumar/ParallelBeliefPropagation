@@ -79,8 +79,8 @@ def process_file(inname, outname):
 
 
 def main():
-    innames = ['cat.png']
-    outname = 'tmp.txt'
+    innames = ['input_training/' + str(i) + '.jpg' for i in range(18)]
+    outname = 'trainingblocks.txt'
     
     # Clear the file
     with open(outname, 'w') as f:
