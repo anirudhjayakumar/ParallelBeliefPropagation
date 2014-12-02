@@ -14,6 +14,7 @@ def process_output(infile, imgfile):
     into an image.
     '''
 
+    #----First, regenerate blurry image----
     #Read in image
     mat = mpimg.imread(imgfile)[:, :, 0]
 
@@ -29,16 +30,16 @@ def process_output(infile, imgfile):
 
     #Contrast normalize the image somewhere
 
-    #Write output to file
+    #----Then, put together output of Charm code----
     with open(infile) as f:
         nrows, ncols, bdim = map(float, f.readline().strip().split())
+        bdim = int(np.sqrt(bdim))
         mat2 = np.zeros((nrows*bdim, ncols*bdim))
         for line in f:
             nums = map(float, line.strip().split())
             row = int(nums[0])
             col = int(nums[1])
-            #data = np.array(nums[2:]).reshape((bdim, bdim))
-            data = np.array(nums[3:]).reshape((bdim, bdim))
+            data = np.array(nums[2:]).reshape((bdim, bdim))
 
             mat2[row*bdim:(row+1)*bdim, col*bdim:(col+1)*bdim] = data
 
