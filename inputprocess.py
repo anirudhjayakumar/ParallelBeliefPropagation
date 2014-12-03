@@ -56,8 +56,8 @@ def process_input(infile, outfile):
 
 
 def main():
-    inname = 'cat.png'
-    outname = 'block_input.txt'
+    inname = 'small_input/lenna_small.png'
+    outname = 'inputblocks.txt'
     process_input(inname, outname)
     
 
