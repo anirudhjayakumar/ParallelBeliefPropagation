@@ -80,7 +80,7 @@ def process_file(inname, outname):
 
 
 def main():
-    innames = ['input_training/' + str(i) + '.jpg' for i in range(18)]
+    innames = ['input_training/' + str(i) + '.jpg' for i in range(17)]
     outname = 'trainingblocks.txt'
     
     # Clear the file
