@@ -47,12 +47,12 @@ def process_input(infile, outfile):
     ncols = endy / N
     m2 = M*N
     with open(outfile, 'w') as f:
-        header = '%d %d\n' % (nrows, ncols)
+        header = '%d %d %d %d\n' % (nrows*ncols,nrows, ncols,m2)
         f.write(header)
         for i in range(nrows):
             for j in range(ncols):
                 s = map(str, blocks[i*ncols + j].flatten())
-                f.write('%d %d %d %s\n' % (i, j, m2, " ".join(s)))
+                f.write('%d %d %s\n' % (i, j, " ".join(s)))
 
 
 def main():

@@ -143,7 +143,7 @@ private:
     vector< vector<double> >  in_msgs, out_msgs;
     vector<double> beliefs;
     std::vector<double> myphis;
-    int i, j;
+    int i_index, j_index;
     Patch myPatch;
     ImageDB *DB;
     int iter;
@@ -152,14 +152,15 @@ public:
     PatchArray(vector<Patch> img) {
         __sdag_init();
 
-        i = thisIndex.x;
-        j = thisIndex.y;
+        i_index = thisIndex.x;
+        j_index = thisIndex.y;
 
+        beliefs.resize(CANDIDATE_COUNT,0);        
         neighCandidates.resize(4);
         out_msgs.resize(4);
         in_msgs.resize(4);
 
-        myPatch = img[i + arrayXDim*j];
+        myPatch = img[i_index + arrayXDim*j_index];
     }
     PatchArray(CkMigrateMessage *msg) {}
 
@@ -169,6 +170,7 @@ public:
         Chooses the best candidate patches and calculates the
         corresponding phi values.
         */
+        CkPrintf("[%d,%d] DB search begin\n",thisIndex.x,thisIndex.y);
         int myplace, myindex;
         double mydist;
         bool changedVec; 
@@ -223,25 +225,25 @@ public:
             myCandidates.push_back(index[i]);
             myphis.push_back(distance[i]);
         }
-
+        CkPrintf("[%d,%d] DB search complete\n",thisIndex.x,thisIndex.y);
     }
 
     void SendPatchesToNeighbors() {
         // EAST
-        if (j > 0)
-            thisProxy(i, j-1).RecvCandidatesFromNeighbors(EAST, myCandidates);
+        if (j_index > 0)
+            thisProxy(i_index, j_index-1).RecvCandidatesFromNeighbors(EAST, myCandidates);
 
         // WEST
-        if (j < arrayYDim-1)
-            thisProxy(i, j+1).RecvCandidatesFromNeighbors(WEST, myCandidates);
+        if (j_index < arrayYDim-1)
+            thisProxy(i_index, j_index+1).RecvCandidatesFromNeighbors(WEST, myCandidates);
 
         // SOUTH
-        if (i > 0)
-            thisProxy(i-1, j).RecvCandidatesFromNeighbors(SOUTH, myCandidates);
+        if (i_index > 0)
+            thisProxy(i_index-1, j_index).RecvCandidatesFromNeighbors(SOUTH, myCandidates);
 
         // NORTH
-        if (i < arrayXDim-1)
-            thisProxy(i+1, j).RecvCandidatesFromNeighbors(NORTH, myCandidates);
+        if (i_index < arrayXDim-1)
+            thisProxy(i_index+1, j_index).RecvCandidatesFromNeighbors(NORTH, myCandidates);
     }
 
     void ProcessCandidates(int from, vector<PatchID> patches) {
@@ -251,14 +253,14 @@ public:
 
     void ComputeMessages() {
         // WEST
-        if (j > 0)
+        if (j_index > 0)
             for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[WEST].size(); ++j)
                     out_msgs[WEST][j] += myphis[i] * psi(myCandidates[i], neighCandidates[WEST][j],WEST) * (in_msgs[EAST][i]
                     * in_msgs[SOUTH][i] * in_msgs[NORTH][i]);
 
         // EAST
-        if (j < arrayYDim-1)
+        if (j_index < arrayYDim-1)
 
             for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[EAST].size(); ++j)
@@ -266,14 +268,14 @@ public:
                     (in_msgs[NORTH][i] * in_msgs[SOUTH][i] * in_msgs[WEST][i]);
 
         // NORTH
-        if (i > 0)
+        if (i_index > 0)
             for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[NORTH].size(); ++j)
                     out_msgs[NORTH][j] += myphis[i] * psi(myCandidates[i], neighCandidates[NORTH][j],NORTH) *
                     (in_msgs[EAST][i] * in_msgs[WEST][i] * in_msgs[SOUTH][i]);
 
         // SOUTH
-        if (i < arrayXDim-1)
+        if (i_index < arrayXDim-1)
             for (int i = 0; i < myCandidates.size(); ++i)
                 for (int j = 0; j < out_msgs[SOUTH].size(); ++j)
                     out_msgs[SOUTH][j] += myphis[i] * psi(myCandidates[i], neighCandidates[SOUTH][j],SOUTH) *
@@ -282,38 +284,46 @@ public:
 
     void SendMessagesToNeighbors() {
         // EAST
-        if (j > 0)
-            thisProxy(i, j-1).RecvMessageFromNeighbor(iter, EAST, out_msgs[WEST]);
+        if (j_index > 0)
+            thisProxy(i_index, j_index-1).RecvMessageFromNeighbor(iter, EAST, out_msgs[WEST]);
 
         // WEST
-        if (j < arrayYDim-1)
-            thisProxy(i, j+1).RecvMessageFromNeighbor(iter, WEST, out_msgs[EAST]);
+        if (j_index < arrayYDim-1)
+            thisProxy(i_index, j_index+1).RecvMessageFromNeighbor(iter, WEST, out_msgs[EAST]);
 
         // SOUTH
-        if (i > 0)
-            thisProxy(i-1, j).RecvMessageFromNeighbor(iter, SOUTH, out_msgs[NORTH]);
+        if (i_index > 0)
+            thisProxy(i_index-1, j_index).RecvMessageFromNeighbor(iter, SOUTH, out_msgs[NORTH]);
 
         // NORTH
-        if (i < arrayXDim-1)
-            thisProxy(i+1, j).RecvMessageFromNeighbor(iter,NORTH , out_msgs[SOUTH]);
+        if (i_index < arrayXDim-1)
+            thisProxy(i_index+1, j_index).RecvMessageFromNeighbor(iter,NORTH , out_msgs[SOUTH]);
     }
 
     void InitMsg() {
         // WEST
-        if (j > 0)
+        if (j_index > 0)
             out_msgs[WEST].resize(neighCandidates[WEST].size(), 1.0 / neighCandidates[WEST].size());
 
         // EAST
-        if (j < arrayYDim-1)
+        if (j_index < arrayYDim-1)
             out_msgs[EAST].resize(neighCandidates[EAST].size(), 1.0 / neighCandidates[EAST].size());
 
         // NORTH
-        if (i > 0)
+        if (i_index > 0)
             out_msgs[NORTH].resize(neighCandidates[NORTH].size(), 1.0 / neighCandidates[NORTH].size());
 
         // SOUTH
-        if (i < arrayXDim-1)
+        if (i_index < arrayXDim-1)
             out_msgs[SOUTH].resize(neighCandidates[SOUTH].size(), 1.0 / neighCandidates[SOUTH].size());
+
+        // inti all input msg to 1. 
+        
+        in_msgs[NORTH].resize(CANDIDATE_COUNT, 1.0);
+        in_msgs[SOUTH].resize(CANDIDATE_COUNT, 1.0);
+        in_msgs[EAST].resize(CANDIDATE_COUNT, 1.0);
+        in_msgs[WEST].resize(CANDIDATE_COUNT, 1.0);
+
     }
 
     void ProcessMsgFromNeighbor(int from, vector<double> msg) {
@@ -416,7 +426,7 @@ private:
 class Main: public CBase_Main {
 private:
     string sOutputImagePath;
-
+    double dbStartTime;
 public:
     Main(CkArgMsg *m) {
         // Print usage details
@@ -425,7 +435,7 @@ public:
             CkPrintf("Usage: ./charmrun +p4 ./superRes <db folder path> <input image path> <output image path>");
             CkExit();
         }
-
+        
         mainProxy = thisProxy;
 
         // Get the training set directory
@@ -437,6 +447,7 @@ public:
 
         // Construct node group
         dbProxy = CProxy_DBNode::ckNew();
+        dbStartTime = CkWallTimer();
         dbProxy.FillDB(sDBFolderPath);
 
         // Construct patcharray
@@ -450,8 +461,10 @@ public:
 
     void CheckConverged(double norm) {
         if (norm < TOL) {
+            CkPrintf("Convergence test: Pass\n");
             arrayProxy.GetFinalPatch();
         } else {
+            CkPrintf("Convergence test: Fail\n");
             arrayProxy.Run();
         }
     }
@@ -462,10 +475,12 @@ public:
 
         ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
         WriteFinalPatches(sOutputImagePath, DB, p, num_elements);
+        CkExit();
     }
 
     void DB_Populated()
     {
+        CkPrintf("Database populated in %f seconds\n",CkWallTimer() - dbStartTime);
         arrayProxy.Setup();
     }
 };

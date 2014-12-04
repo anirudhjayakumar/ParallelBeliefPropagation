@@ -1,4 +1,4 @@
-mainmodule SuperResolution {
+module SuperResolution {
 include "pup_stl.h";
 
 readonly CProxy_Main mainProxy;
@@ -35,28 +35,28 @@ array [2D] PatchArray {
       SendPatchesToNeighbors(); 
     }
 
-    if (j > 0) { //recv from WEST
+    if (j_index > 0) { //recv from WEST
       when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
       serial "Process Patch from WEST" {
         ProcessCandidates(from, indices);
       }
     }
 
-    if (j < arrayYDim-1) { //recv from EAST
+    if (j_index < arrayYDim-1) { //recv from EAST
       when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
       serial "Process Patch from EAST" {
         ProcessCandidates(from, indices);
       }
     }
 
-    if (i > 0) {  //recv from north. 
+    if (i_index > 0) {  //recv from north. 
         when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
       serial "Process Patch from NORTH" {
         ProcessCandidates(from, indices);
       }
     }
 
-    if (i < arrayXDim-1) { //recv from south. 
+    if (i_index < arrayXDim-1) { //recv from south. 
       when RecvCandidatesFromNeighbors(int from, std::vector<PatchID> indices)
       serial "Process Patch from SOUTH" {
         ProcessCandidates(from, indices);
@@ -67,7 +67,7 @@ array [2D] PatchArray {
       InitMsg();
     }
     serial "call run" {
-      thisProxy.Run();
+      Run();
     }
   };
 
@@ -80,25 +80,25 @@ array [2D] PatchArray {
         SendMessagesToNeighbors();
       }
 
-      if (j > 0) {
+      if (j_index > 0) {
         when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message west" {
            ProcessMsgFromNeighbor(from, msg);
         }
       }
 
-      if (j < arrayYDim-1) {
+      if (j_index < arrayYDim-1) {
         when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message east" {
           ProcessMsgFromNeighbor(from, msg);
         }
       }
 
-      if (i > 0) {
+      if (i_index > 0) {
         when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message north" {
           ProcessMsgFromNeighbor(from, msg);
         }
       }
 
-      if (i < arrayXDim-1) {
+      if (i_index < arrayXDim-1) {
         when RecvMessageFromNeighbor[iter](int itr, int from, vector<double> msg) serial "Process message south" {
           ProcessMsgFromNeighbor(from, msg);
         }
