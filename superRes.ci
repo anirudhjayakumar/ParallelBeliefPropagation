@@ -1,4 +1,4 @@
-module SuperResolution {
+mainmodule SuperResolution {
 include "pup_stl.h";
 
 readonly CProxy_Main mainProxy;
