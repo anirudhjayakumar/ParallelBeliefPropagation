@@ -34,14 +34,15 @@ def process_output(infile, imgfile):
     with open(infile) as f:
         nrows, ncols, bdim = map(float, f.readline().strip().split())
         bdim = int(np.sqrt(bdim))
-        mat2 = np.zeros((nrows*bdim, ncols*bdim))
+        sdim = bdim - 2
+        mat2 = np.zeros((nrows*sdim, ncols*sdim))
         for line in f:
             nums = map(float, line.strip().split())
             row = int(nums[0])
             col = int(nums[1])
             data = np.array(nums[2:]).reshape((bdim, bdim))
 
-            mat2[row*bdim:(row+1)*bdim, col*bdim:(col+1)*bdim] = data
+            mat2[row*sdim:(row+1)*sdim, col*sdim:(col+1)*sdim] = data[1:-1, 1:-1]
 
     plt.figure()
     plt.imshow(mat, cmap=cm.Greys_r)
@@ -58,8 +59,8 @@ def process_output(infile, imgfile):
 
 
 def main():
-    inname = 'block_input.txt'
-    imgname = 'cat.png'
+    inname = 'small_input/outputblocks.txt'
+    imgname = 'small_input/lenna_small.jpg'
     process_output(inname, imgname)
     
 
