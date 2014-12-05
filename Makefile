@@ -1,4 +1,4 @@
-CHARMC=~/code/charm_master/netlrts-linux-x86_64/bin/charmc $(OPTS)
+CHARMC=/home/ralfgunter/uiuc/curr/cs598lvk/charm/bin/charmc $(OPTS)
 TESTOPTS = ++local
  
 OBJS = superRes.o

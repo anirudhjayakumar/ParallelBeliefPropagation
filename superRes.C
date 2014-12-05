@@ -1,6 +1,9 @@
 #include "SuperResolution.h"
 #include "SuperResolution.decl.h"
 
+#include "lshbox.h"
+#include <vector>
+#include <utility>
 
 
 /*readonly*/ CProxy_Main mainProxy;
@@ -13,6 +16,9 @@ class DBNode: public CBase_DBNode
 {
 private:
     struct ImageDB db;
+    lshbox::Matrix<double> data;
+    lshbox::itqLsh<double> mylsh;
+
 public:
     DBNode()
     {
@@ -58,7 +64,7 @@ public:
 
         for (vector<string>::iterator itr = sFiles.begin(); itr != sFiles.end(); ++itr)
         {
-            if(*itr == "." || *itr == "..") continue;
+            if (*itr == "." || *itr == "..") continue;
             ifstream imageFile;
             string sFilePath = sTrainingSetDirPath + "/" + itr->c_str();
             imageFile.open(sFilePath.c_str());
@@ -109,6 +115,35 @@ public:
             }
         }
 
+        CkPrintf("Allocating files\n");
+        vector<double> v(db.lowResSize * db.imageData.size());
+        int c = 0;
+        for (int i = 0; i < db.imageData.size(); ++i) {
+            for (int j = 0; j < db.lowResSize; ++j) {
+                v[c++] = db.imageData[i].first[j];
+            }
+        }
+        CkPrintf("c = %d\n", c);
+
+        CkPrintf("Starting to load\n");
+        data.load(&v[0], db.imageData.size(), db.lowResSize);
+        CkPrintf("db.imageData.size() = %d\n", db.imageData.size());
+        CkPrintf("db.lowResSize = %d\n", db.lowResSize);
+        CkPrintf("data.getDim() = %d\n", data.getDim());
+
+        CkPrintf("Starting to train\n");
+        lshbox::itqLsh<double>::Parameter param;
+        param.M = 52100;
+        param.L = 5;
+        param.D = data.getDim();
+        param.N = 8;
+        param.S = db.imageData.size();
+        param.I = 50;
+        mylsh.reset(param);
+        mylsh.train(data);
+
+        CkPrintf("done loading\n");
+
         contribute(CkCallback(CkReductionTarget(Main, DB_Populated), mainProxy));
         // return SUCCESS;
     }
@@ -116,6 +151,16 @@ public:
     ImageDB *GetImageDB()
     {
         return &db;
+    }
+
+    lshbox::Matrix<double> *GetData()
+    {
+        return &data;
+    }
+
+    lshbox::itqLsh<double> *GetLSH()
+    {
+        return &mylsh;
     }
 
     void PrintDB()
@@ -171,60 +216,36 @@ public:
         corresponding phi values.
         */
         CkPrintf("[%d,%d] DB search begin\n",thisIndex.x,thisIndex.y);
-        int myplace, myindex;
-        double mydist;
-        bool changedVec; 
-        int index[CANDIDATE_COUNT];  // Unordered indices of best candidates
-        double distance[CANDIDATE_COUNT];  // Distance from me to index[i]
-        int order[CANDIDATE_COUNT];  // Order of index values
 
         // Get pointer to the db from the node group
+        lshbox::itqLsh<double> *mylsh = dbProxy.ckLocalBranch()->GetLSH();
+        lshbox::Matrix<double> *data  = dbProxy.ckLocalBranch()->GetData();
+
+        lshbox::Matrix<double>::Accessor accessor(*data);
+        lshbox::Metric<double> metric(data->getDim(), L2_DIST);
+
+        lshbox::Scanner<lshbox::Matrix<double>::Accessor> scanner(
+            accessor,
+            metric,
+            CANDIDATE_COUNT,
+            std::numeric_limits<double>::max()
+        );
+
+        std::cout << "RUNNING QUERY ..." << std::endl;
+        scanner.reset(&myPatch[0]);
+        mylsh->query(&myPatch[0], scanner);
+        std::vector<std::pair<unsigned, float> > topK = scanner.topk().getTopk();
+
         DB = dbProxy.ckLocalBranch()->GetImageDB();
 
-        // Fill with the first CANDIDATE_COUNT
         for (int i = 0; i < CANDIDATE_COUNT; i++) {
-            Patch dbPatch = DB->GetLowResPatch(i);
-            index[i] = i;
-            distance[i] = phi(myPatch,dbPatch,DB->lowResSize);
-            myplace = 0;
-            for (int j = 0; j < i; j++) {
-                if (distance[j] < distance[i]) {
-                    myplace++;
-                } else {
-                    order[j]++;
-                }
-            }
+            int idx = topK[i].first;
+            printf("idx = %d\n", idx);
+            Patch v((*data)[idx], (*data)[idx] + DB->lowResSize);
+            myCandidates.push_back(idx);
+            myphis.push_back(phi(myPatch, v, DB->lowResSize));
         }
 
-        // Go through the rest of the DB, booting out
-        // the worst candidate each time a new one
-        // is found.
-        for (int i = CANDIDATE_COUNT; i < DB->imageData.size(); i++) {
-            Patch dbPatch = DB->GetLowResPatch(i);
-            mydist = phi(myPatch,dbPatch,DB->lowResSize);
-            myplace = 0;
-            for (int j = 0; j < CANDIDATE_COUNT; j++) {
-                if (distance[j] < mydist) {
-                    myplace++;
-                } else {
-                    order[j]++;
-                    if (order[j] == CANDIDATE_COUNT) {
-                        myindex = j;
-                        changedVec = true;
-                    }
-                }
-            }
-            if (changedVec) {
-                index[myindex] = i;
-                distance[myindex] = mydist;
-                order[myindex] = myplace;
-            }
-        }
-
-        for (int i = 0; i < CANDIDATE_COUNT; i++) {
-            myCandidates.push_back(index[i]);
-            myphis.push_back(distance[i]);
-        }
         CkPrintf("[%d,%d] DB search complete\n",thisIndex.x,thisIndex.y);
     }
 
