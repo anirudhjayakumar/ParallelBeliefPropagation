@@ -1,0 +1,3 @@
+[submodule "LSHBOX"]
+	path = LSHBOX
+	url = https://github.com/RSIA-LIESMARS-WHU/LSHBOX.git

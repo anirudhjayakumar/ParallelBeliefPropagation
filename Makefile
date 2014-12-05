@@ -1,4 +1,5 @@
-CHARMC=~/code/charm_master/netlrts-linux-x86_64/bin/charmc $(OPTS)
+CHARMC=/home/ralfgunter/uiuc/curr/cs598lvk/charm/bin/charmc $(OPTS)
+OPTS = -I/home/ralfgunter/uiuc/curr/cs598lvk/LSHBOX/include -std=c++11
 TESTOPTS = ++local
  
 OBJS = superRes.o
