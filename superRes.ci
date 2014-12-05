@@ -3,7 +3,7 @@ include "pup_stl.h";
 
 readonly CProxy_Main mainProxy;
 readonly CProxy_PatchArray arrayProxy; 
-
+readonly CProxy_DBNode dbProxy;
 readonly int arrayXDim;
 readonly int arrayYDim;
 
