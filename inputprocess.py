@@ -5,7 +5,7 @@ import scipy.ndimage
 import scipy.misc
 from scipy import ndimage
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+from PIL import Image
 
 def blockshaped(arr, nrows, ncols):
     """
@@ -25,7 +25,8 @@ def blockshaped(arr, nrows, ncols):
 
 def process_input(infile, outfile):
     #Read in image (mat file in this case)
-    mat = mpimg.imread(infile)[:, :, 0]
+    im = Image.open(infile)
+    mat = np.array(im, dtype=float)[:, :, 0]
 
     #Upsample and high-pass filter
     mat = sp.ndimage.zoom(mat, 2, order=3)
