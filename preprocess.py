@@ -5,7 +5,7 @@ import scipy.ndimage
 import scipy.misc
 from scipy import ndimage
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+from PIL import Image
 import fileinput
 
 def blockshaped(arr, nrows, ncols):
@@ -26,7 +26,8 @@ def blockshaped(arr, nrows, ncols):
 
 def process_file(inname, outname):
     #Read in image (mat file in this case)
-    mat = mpimg.imread(inname)[:, :, 0]
+    im = Image.open(inname)
+    mat = np.array(im, dtype=float)[:, :, 0]
 
     #Blur initial image
     blurred = sp.ndimage.uniform_filter(mat)

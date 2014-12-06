@@ -5,7 +5,7 @@ import scipy.ndimage
 import scipy.misc
 from scipy import ndimage
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+from PIL import Image
 import matplotlib.cm as cm
 
 def process_output(infile, imgfile):
@@ -16,7 +16,8 @@ def process_output(infile, imgfile):
 
     #----First, regenerate blurry image----
     #Read in image
-    mat = mpimg.imread(imgfile)[:, :, 0]
+    im = Image.open(imgfile)
+    mat = np.array(im, dtype=float)[:, :, 0]
 
     #Upsample
     mat = sp.ndimage.zoom(mat, 2, order=3)
