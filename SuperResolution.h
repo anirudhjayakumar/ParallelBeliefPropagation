@@ -20,7 +20,7 @@ using namespace std;
 #define FAIL             1
 #define CONV_PERIOD      5 // convergence test every CONV_PERIOD
 #define CANDIDATE_COUNT 16
-#define SEARCH_COUNT     8
+#define SEARCH_COUNT    16
 #define NORTH 0
 #define SOUTH 1
 #define WEST  2

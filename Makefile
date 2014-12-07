@@ -1,5 +1,5 @@
-CHARMC=/home/ralfgunter/uiuc/curr/cs598lvk/charm/bin/charmc $(OPTS)
-OPTS = -I/home/ralfgunter/uiuc/curr/cs598lvk/LSHBOX/include -std=c++11
+CHARMC=~/code/charm_master/bin/charmc $(OPTS)
+OPTS = -I./LSHBOX/include -std=c++0x
 TESTOPTS = ++local
  
 OBJS = superRes.o

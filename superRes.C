@@ -123,8 +123,7 @@ public:
             }
         }
 
-        CkPrintf("Allocating files\n");
-        
+        CkPrintf("%d] DB loaded. Size:%d\n",CkMyNode(),db.imageData.size());        
         // get the size, startindex and endIndex of the db 
         GetSearchSpaceInformation();
         
@@ -136,14 +135,16 @@ public:
             }
         }
         CkPrintf("c = %d\n", c);
+        CkPrintf("[%d]DB Search Size = %d\n", CkMyNode(),nDBSearchSize);
+        CkPrintf("[%d]DB Search start index = %d\n", CkMyNode(),nDBSearchStartIndex);
+        CkPrintf("[%d]DB Search endIndex = %d\n", CkMyNode(),nDBSearchEndIndex);
+        CkPrintf("[%d]db.lowResSize = %d\n", CkMyNode(),db.lowResSize);
+        CkPrintf("[%d]data.getDim() = %d\n", CkMyNode(),data.getDim());
 
-        CkPrintf("Starting to load\n");
+
+        CkPrintf("[%d]Starting to load\n",CkMyNode());
         data.load(&v[0], nDBSearchSize, db.lowResSize);
-        CkPrintf("DB Search Size = %d\n", nDBSearchSize);
-        CkPrintf("db.lowResSize = %d\n", db.lowResSize);
-        CkPrintf("data.getDim() = %d\n", data.getDim());
-
-        CkPrintf("Starting to train\n");
+                CkPrintf("[%d]Starting to train\n",CkMyNode());
         lshbox::itqLsh<double>::Parameter param;
         param.M = 52100;
         param.L = 5;
@@ -287,9 +288,11 @@ public:
 
 
         //send request to nodegroup for remote search
-        CkCallback callbk_(CkIndex_PatchArray::RecvCandidatesFromRemoteDB(NULL),thisProxy(thisIndex.x,thisIndex.y));
-        dbProxy.ckLocalBranch()->RequestRemoteDBSearch(myPatch,callbk_);
-        
+       if( CkNumNodes() > 0)
+       {
+           CkCallback callbk_(CkIndex_PatchArray::RecvCandidatesFromRemoteDB(NULL),thisProxy(thisIndex.x,thisIndex.y));
+           dbProxy.ckLocalBranch()->RequestRemoteDBSearch(myPatch,callbk_);
+       }
         
         // Get pointer to the db from the node group
         lshbox::itqLsh<double> *mylsh = dbProxy.ckLocalBranch()->GetLSH();

@@ -39,8 +39,8 @@ array [2D] PatchArray {
   entry void Setup() {
     serial "local search and remote requests" {
       SetupPatch(); //finds the candidate patches and send request for remote search    
+      CkPrintf("[%d,%d]Waiting to recieve remote search results\n",thisIndex.x,thisIndex.y);
     }
-
     for(recv_count = 0; recv_count < nodeCount -1;++recv_count)
     {
         when RecvCandidatesFromRemoteDB(CandidateList* patches)
@@ -50,6 +50,7 @@ array [2D] PatchArray {
     }
     
     serial "consolidate candidates and send to neighbors" {     
+        CkPrintf("[%d,%d]Done receiving remote search results\n",thisIndex.x,thisIndex.y);
         ConsolidateCandidates();
         SendPatchesToNeighbors();
     }
