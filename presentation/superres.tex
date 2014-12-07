@@ -1,0 +1,78 @@
+\documentclass{beamer}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[english]{babel}
+\usepackage{tikz}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{beamerthemeMadrid}
+\usepackage{default}
+\usepackage[square,numbers]{natbib}
+\renewcommand{\bibsection}{\subsection*{\bibname}}
+%Adding more spacing in itemize
+\newlength{\wideitemsep}
+\setlength{\wideitemsep}{\itemsep}
+\addtolength{\wideitemsep}{5pt}
+\let\olditem\item
+\renewcommand{\item}{\setlength{\itemsep}{\wideitemsep}\olditem}
+\newcommand{\q}{ {\bf q} }
+
+% Beamer options
+\setbeamertemplate{section page}
+{
+	\begin{centering}
+	\begin{beamercolorbox}[sep=12pt,center]{part title}
+	\usebeamerfont{section title}\insertsection\par
+	\end{beamercolorbox}
+	\end{centering}
+}
+\beamertemplatenavigationsymbolsempty
+\AtBeginSection{\frame{\sectionpage}}
+
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\abs}[1]{|#1|}
+\newcommand{\vect}[1]{\boldsymbol{\mathbf{#1}}}
+\newcommand{\ceil}[1]{\left \lceil #1 \right \rceil }
+\newcommand{\floor}[1]{\left \lfloor #1 \right \rfloor }
+\title{Parallel Belief Propagation}
+\subtitle{Image Super-Resolution}
+\date{December 9, 2014}
+\author{Natahniel Bowman, Erin Carrier, Anirudh Jayakumar, Ralf Gunter}
+
+\begin{document}
+\nocite{*}
+\frame{\titlepage}
+\frame{\frametitle{Table of contents}\tableofcontents}
+
+%\input{}
+\section{Section1}
+\subsection{Subsection1}
+\frame{\frametitle{FrameTitle1}
+	\begin{itemize}
+	\item Item1
+	\item Item2
+	\item Item3
+	\end{itemize}
+}
+
+\frame{\frametitle{FrameTitle2}
+	\begin{itemize}
+	\item Item1
+	\item Item2
+	\end{itemize}
+}
+
+\subsection{SubsectionTitle2}
+\frame{\frametitle{FrameTitle3}
+	\begin{itemize}
+	\item Item1 \cite{fp}
+	\item Item2
+	\end{itemize}
+}
+
+\frame{\frametitle{References}
+	\bibliographystyle{plainnat}
+	\bibliography{bibentries}
+}
+\end{document}
