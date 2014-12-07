@@ -8,12 +8,14 @@ readonly int arrayXDim;
 readonly int arrayYDim;
 readonly int nodeCount;
 
+message CandidateList;
+
 nodegroup DBNode {
   entry DBNode(void);
   entry void FillDB(const string& sTrainingSetDirPath);
   // read all db, but rstricted search space
 
-  entry void RequestRemoteDBSearch(Patch patch,CkCallback callBack_);
+  entry void SearchDB(Patch patch,CkCallback callBack_);
 };
 
 mainchare Main {
@@ -33,7 +35,7 @@ array [2D] PatchArray {
   entry void RecvCandidatesFromNeighbors(int from, vector<PatchID> patches); 
   entry void RecvMessageFromNeighbor(int itr,int from,vector<double> msg);
   entry void GetFinalPatch(); // calls cb RecvFinalPatch on mainProxy
-  entry [reductiontarget] void RecvCandidatesFromRemoteDB(vector<PatchID> patches); 
+  entry [reductiontarget] void RecvCandidatesFromRemoteDB(CandidateList* patches); 
   entry void Setup() {
     serial "local search and remote requests" {
       SetupPatch(); //finds the candidate patches and send request for remote search    
@@ -41,7 +43,7 @@ array [2D] PatchArray {
 
     for(recv_count = 0; recv_count < nodeCount -1;++recv_count)
     {
-        when RecvCandidatesFromRemoteDB(vector<PatchID> patches)
+        when RecvCandidatesFromRemoteDB(CandidateList* patches)
         serial "process candidates from remote DB" {
            ProcessCandidatesFromRemoteDB(patches);
         }

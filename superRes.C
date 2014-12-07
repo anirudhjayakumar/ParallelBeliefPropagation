@@ -13,13 +13,20 @@
 /*readonly*/ int arrayYDim;
 /*readonly*/ int nodeCount;
 
+
+class CandidateList: public CMessage_CandidateList
+{
+    public:
+    PatchID ids[SEARCH_COUNT];
+};
+
 class DBNode: public CBase_DBNode
 {
 private:
     struct ImageDB db;
     lshbox::Matrix<double> data;
     lshbox::itqLsh<double> mylsh;
-
+    int nDBSearchSize, nDBSearchStartIndex,nDBSearchEndIndex;
 public:
     DBNode()
     {
@@ -117,18 +124,22 @@ public:
         }
 
         CkPrintf("Allocating files\n");
-        vector<double> v(db.lowResSize * db.imageData.size());
+        
+        // get the size, startindex and endIndex of the db 
+        GetSearchSpaceInformation();
+        
+        vector<double> v(db.lowResSize * nDBSearchSize);
         int c = 0;
-        for (int i = 0; i < db.imageData.size(); ++i) {
+        for (int i = 0; i < nDBSearchSize; ++i) {
             for (int j = 0; j < db.lowResSize; ++j) {
-                v[c++] = db.imageData[i].first[j];
+                v[c++] = db.imageData[i+nDBSearchStartIndex].first[j];
             }
         }
         CkPrintf("c = %d\n", c);
 
         CkPrintf("Starting to load\n");
-        data.load(&v[0], db.imageData.size(), db.lowResSize);
-        CkPrintf("db.imageData.size() = %d\n", db.imageData.size());
+        data.load(&v[0], nDBSearchSize, db.lowResSize);
+        CkPrintf("DB Search Size = %d\n", nDBSearchSize);
         CkPrintf("db.lowResSize = %d\n", db.lowResSize);
         CkPrintf("data.getDim() = %d\n", data.getDim());
 
@@ -138,7 +149,7 @@ public:
         param.L = 5;
         param.D = data.getDim();
         param.N = 8;
-        param.S = db.imageData.size();
+        param.S = nDBSearchSize;
         param.I = 50;
         mylsh.reset(param);
         mylsh.train(data);
@@ -182,9 +193,60 @@ public:
 
     void RequestRemoteDBSearch(Patch in_patch, CkCallback callBack_)
     {
+        for(int i =0;i < nodeCount;++i)
+        {
+            if(i != CkMyNode()) 
+                dbProxy[i].SearchDB(in_patch,callBack_);
+        }
     }
 
-    
+    void SearchDB(Patch in_patch,CkCallback callBack_)
+    {
+        lshbox::itqLsh<double> *mylsh = GetLSH();
+        lshbox::Matrix<double> *data  = GetData();
+
+        lshbox::Matrix<double>::Accessor accessor(*data);
+        lshbox::Metric<double> metric(data->getDim(), L2_DIST);
+
+        
+        lshbox::Scanner<lshbox::Matrix<double>::Accessor> scanner(
+            accessor,
+            metric,
+            SEARCH_COUNT,
+            std::numeric_limits<double>::max()
+        );
+
+        std::cout << "RUNNING QUERY ..." << std::endl;
+        scanner.reset(&in_patch[0]);
+        mylsh->query(&in_patch[0], scanner);
+        std::vector<std::pair<unsigned, float> > topK = scanner.topk().getTopk();
+
+        CandidateList *msg = new CandidateList();
+        for (int i = 0; i < SEARCH_COUNT; i++) {
+            int idx = topK[i].first;
+            msg->ids[i]=idx;
+        }
+        callBack_.send(msg);
+
+    }
+    void GetSearchSpaceInformation()
+    {
+        int nodeIndex = CkMyNode();
+        int mod = db.imageData.size()%nodeCount;
+        int perNodeDBSize = db.imageData.size()/nodeCount;
+        if(nodeIndex < mod)
+        {
+            nDBSearchSize = perNodeDBSize + 1;
+            nDBSearchStartIndex = nodeIndex*nDBSearchSize;
+            nDBSearchEndIndex = nDBSearchStartIndex + nDBSearchSize -1;
+        }
+        else
+        {
+            nDBSearchSize = perNodeDBSize;
+            nDBSearchStartIndex = nodeIndex*nDBSearchSize + mod;
+            nDBSearchEndIndex = nDBSearchStartIndex + nDBSearchSize -1;
+        }
+    }
 };
 
 class PatchArray: public CBase_PatchArray {
@@ -223,6 +285,12 @@ public:
         */
         CkPrintf("[%d,%d] DB search begin\n",thisIndex.x,thisIndex.y);
 
+
+        //send request to nodegroup for remote search
+        CkCallback callbk_(CkIndex_PatchArray::RecvCandidatesFromRemoteDB(NULL),thisProxy(thisIndex.x,thisIndex.y));
+        dbProxy.ckLocalBranch()->RequestRemoteDBSearch(myPatch,callbk_);
+        
+        
         // Get pointer to the db from the node group
         lshbox::itqLsh<double> *mylsh = dbProxy.ckLocalBranch()->GetLSH();
         lshbox::Matrix<double> *data  = dbProxy.ckLocalBranch()->GetData();
@@ -233,7 +301,7 @@ public:
         lshbox::Scanner<lshbox::Matrix<double>::Accessor> scanner(
             accessor,
             metric,
-            CANDIDATE_COUNT,
+            SEARCH_COUNT,
             std::numeric_limits<double>::max()
         );
 
@@ -244,15 +312,11 @@ public:
 
         DB = dbProxy.ckLocalBranch()->GetImageDB();
 
-        for (int i = 0; i < CANDIDATE_COUNT; i++) {
+        for (int i = 0; i < SEARCH_COUNT; i++) {
             int idx = topK[i].first;
-            printf("idx = %d\n", idx);
-            Patch v((*data)[idx], (*data)[idx] + DB->lowResSize);
             myCandidates.push_back(idx);
-            myphis.push_back(phi(myPatch, v, DB->lowResSize));
         }
 
-        CkPrintf("[%d,%d] DB search complete\n",thisIndex.x,thisIndex.y);
     }
 
     void SendPatchesToNeighbors() {
@@ -394,12 +458,28 @@ public:
     }
 
 private:
-    void ProcessCandidatesFromRemoteDB(vector<PatchID> patches)
+    void ProcessCandidatesFromRemoteDB(CandidateList* patches)
     {
+        myCandidates.insert(myCandidates.end(),patches->ids,patches->ids + SEARCH_COUNT);
     }
 
     void ConsolidateCandidates()
     {
+        vector<pair<PatchID, double> > patchIdtoDistMap;
+        double dist = 0;
+        for (int i=0;i<myCandidates.size();++i)
+        {
+            dist = phi(myPatch,DB->GetLowResPatch(myCandidates[i]),DB->lowResSize);
+            patchIdtoDistMap.push_back(pair<PatchID,double>(myCandidates[i],dist));
+        }
+        sort(patchIdtoDistMap.begin(), patchIdtoDistMap.end(), [](const pair<int,int> &left, const pair<int,int> &right) {
+                return left.second < right.second;});
+        myCandidates.clear();
+        for (int i=0;i<CANDIDATE_COUNT;++i)
+        {
+            myCandidates.push_back(patchIdtoDistMap[i].first);
+            myphis.push_back(patchIdtoDistMap[i].second);
+        }
     }
 
 	double psi(int index_me, int index_them, int from) {
@@ -471,7 +551,7 @@ public:
         }
         
         mainProxy = thisProxy;
-
+        nodeCount = CkNumNodes();
         // Get the training set directory
         const string sDBFolderPath = m->argv[1];
         // Get the input image path
