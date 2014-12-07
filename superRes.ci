@@ -6,10 +6,14 @@ readonly CProxy_PatchArray arrayProxy;
 
 readonly int arrayXDim;
 readonly int arrayYDim;
+readonly int nodeCount;
 
 nodegroup DBNode {
   entry DBNode(void);
   entry void FillDB(const string& sTrainingSetDirPath);
+  // read all db, but rstricted search space
+
+  entry void RequestRemoteDBSearch(Patch patch,CkCallBack callBack_);
 };
 
 mainchare Main {
@@ -29,10 +33,23 @@ array [2D] PatchArray {
   entry void RecvCandidatesFromNeighbors(int from, vector<PatchID> patches); 
   entry void RecvMessageFromNeighbor(int itr,int from,vector<double> msg);
   entry void GetFinalPatch(); // calls cb RecvFinalPatch on mainProxy
+  entry [reductiontarget] void RecvCandidatesFromRemoteDB(vector<PatchID> patches); 
   entry void Setup() {
-    serial "setup" {
-      SetupPatch(); //finds the candidate patches
-      SendPatchesToNeighbors(); 
+    serial "local search and remote requests" {
+      SetupPatch(); //finds the candidate patches and send request for remote search    
+    }
+
+    for(recv_count = 0; recv_count < nodeCount -1;++recv_count)
+    {
+        when RecvCandidatesFromRemoteDB(vector<PatchID> patches)
+        serial "process candidates from remote DB" {
+           ProcessCandidatesFromRemoteDB(patches)
+        }
+    }
+    
+    serial "consolidate candidates and send to neighbors" {     
+        ConsolidateCandidates();
+        SendPatchesToNeighbors();
     }
 
     if (j_index > 0) { //recv from WEST
