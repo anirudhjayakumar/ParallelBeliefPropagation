@@ -13,7 +13,7 @@ nodegroup DBNode {
   entry void FillDB(const string& sTrainingSetDirPath);
   // read all db, but rstricted search space
 
-  entry void RequestRemoteDBSearch(Patch patch,CkCallBack callBack_);
+  entry void RequestRemoteDBSearch(Patch patch,CkCallback callBack_);
 };
 
 mainchare Main {
@@ -43,7 +43,7 @@ array [2D] PatchArray {
     {
         when RecvCandidatesFromRemoteDB(vector<PatchID> patches)
         serial "process candidates from remote DB" {
-           ProcessCandidatesFromRemoteDB(patches)
+           ProcessCandidatesFromRemoteDB(patches);
         }
     }
     

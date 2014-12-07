@@ -11,6 +11,7 @@
 /*readonly*/ CProxy_DBNode dbProxy;
 /*readonly*/ int arrayXDim;
 /*readonly*/ int arrayYDim;
+/*readonly*/ int nodeCount;
 
 class DBNode: public CBase_DBNode
 {
@@ -178,6 +179,12 @@ public:
         }
         cout << "=================DB End====================" << endl;
     }
+
+    void RequestRemoteDBSearch(Patch in_patch, CkCallback callBack_)
+    {
+    }
+
+    
 };
 
 class PatchArray: public CBase_PatchArray {
@@ -191,8 +198,7 @@ private:
     int i_index, j_index;
     Patch myPatch;
     ImageDB *DB;
-    int iter;
-
+    int iter,recv_count;
 public:
     PatchArray(vector<Patch> img) {
         __sdag_init();
@@ -388,6 +394,13 @@ public:
     }
 
 private:
+    void ProcessCandidatesFromRemoteDB(vector<PatchID> patches)
+    {
+    }
+
+    void ConsolidateCandidates()
+    {
+    }
 
 	double psi(int index_me, int index_them, int from) {
         /*
