@@ -8,6 +8,16 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import fileinput
 
+def contrast_normalize(m, m2):
+    avg = np.average(m)
+    m = m - avg
+    m2 = m2 - avg
+    m[np.where(m<0)] = 0
+    m2[np.where(m2<0)] = 0
+
+    return m, m2
+
+
 def blockshaped(arr, nrows, ncols):
     """
     Return an array of shape (n, nrows, ncols) where
@@ -65,7 +75,8 @@ def process_file(inname, outname):
             ex = sx + M + 1
             sy = j * N
             ey = sy + N + 1
-            highblocks[i*numblocksy + j] = highpass[sx:ex+1, sy:ey+1]
+            val = i*numblocksy + j
+            blocks[val], highblocks[val] = contrast_normalize(np.copy(blocks[val]), np.copy(highpass[sx:ex+1, sy:ey+1]))
 
     #Contrast normalize the image somewhere
     #Cut out the most low-frequency patches
