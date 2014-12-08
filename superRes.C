@@ -346,34 +346,67 @@ public:
 
 
     void ComputeMessages() {
+        double acc;
+
         // WEST
-        if (j_index > 0)
-            for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[WEST].size(); ++j)
-                    out_msgs[WEST][j] += myphis[i] * psi(myCandidates[i], neighCandidates[WEST][j],WEST) * (in_msgs[EAST][i]
-                    * in_msgs[SOUTH][i] * in_msgs[NORTH][i]);
+        acc = 0.0;
+        if (j_index > 0) {
+            for (int i = 0; i < myCandidates.size(); ++i) {
+                for (int j = 0; j < out_msgs[WEST].size(); ++j) {
+                    out_msgs[WEST][j] += myphis[i] * psi(myCandidates[i], neighCandidates[WEST][j],WEST) *
+                                         (in_msgs[EAST][i] * in_msgs[SOUTH][i] * in_msgs[NORTH][i]);
+                    acc += out_msgs[WEST][j];
+                }
+                for (int j = 0; j < out_msgs[WEST].size(); ++j) {
+                    out_msgs[WEST][j] /= acc;
+                }
+            }
+        }
 
         // EAST
-        if (j_index < arrayYDim-1)
-
-            for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[EAST].size(); ++j)
+        acc = 0.0;
+        if (j_index < arrayYDim-1) {
+            for (int i = 0; i < myCandidates.size(); ++i) {
+                for (int j = 0; j < out_msgs[EAST].size(); ++j) {
                     out_msgs[EAST][j] += myphis[i] * psi(myCandidates[i], neighCandidates[EAST][j],EAST) *
-                    (in_msgs[NORTH][i] * in_msgs[SOUTH][i] * in_msgs[WEST][i]);
+                                         (in_msgs[NORTH][i] * in_msgs[SOUTH][i] * in_msgs[WEST][i]);
+                    acc += out_msgs[EAST][j];
+                }
+                for (int j = 0; j < out_msgs[EAST].size(); ++j) {
+                    out_msgs[EAST][j] /= acc;
+                }
+            }
+        }
 
         // NORTH
-        if (i_index > 0)
-            for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[NORTH].size(); ++j)
+        acc = 0.0;
+        if (i_index > 0) {
+            for (int i = 0; i < myCandidates.size(); ++i) {
+                for (int j = 0; j < out_msgs[NORTH].size(); ++j) {
                     out_msgs[NORTH][j] += myphis[i] * psi(myCandidates[i], neighCandidates[NORTH][j],NORTH) *
-                    (in_msgs[EAST][i] * in_msgs[WEST][i] * in_msgs[SOUTH][i]);
+                                          (in_msgs[EAST][i] * in_msgs[WEST][i] * in_msgs[SOUTH][i]);
+                    acc += out_msgs[NORTH][j];
+                }
+                for (int j = 0; j < out_msgs[NORTH].size(); ++j) {
+                    out_msgs[NORTH][j] /= acc;
+                }
+            }
+        }
 
         // SOUTH
-        if (i_index < arrayXDim-1)
-            for (int i = 0; i < myCandidates.size(); ++i)
-                for (int j = 0; j < out_msgs[SOUTH].size(); ++j)
+        acc = 0.0;
+        if (i_index < arrayXDim-1) {
+            for (int i = 0; i < myCandidates.size(); ++i) {
+                for (int j = 0; j < out_msgs[SOUTH].size(); ++j) {
                     out_msgs[SOUTH][j] += myphis[i] * psi(myCandidates[i], neighCandidates[SOUTH][j],SOUTH) *
-                    (in_msgs[NORTH][i] * in_msgs[WEST][i] * in_msgs[EAST][i]);
+                                          (in_msgs[NORTH][i] * in_msgs[WEST][i] * in_msgs[EAST][i]);
+                    acc += out_msgs[SOUTH][j];
+                }
+                for (int j = 0; j < out_msgs[SOUTH].size(); ++j) {
+                    out_msgs[SOUTH][j] /= acc;
+                }
+            }
+        }
     }
 
     void SendMessagesToNeighbors() {
@@ -411,13 +444,11 @@ public:
         if (i_index < arrayXDim-1)
             out_msgs[SOUTH].resize(neighCandidates[SOUTH].size(), 1.0 / neighCandidates[SOUTH].size());
 
-        // inti all input msg to 1. 
-        
+        // init all input msg to 1. 
         in_msgs[NORTH].resize(CANDIDATE_COUNT, 1.0);
         in_msgs[SOUTH].resize(CANDIDATE_COUNT, 1.0);
         in_msgs[EAST].resize(CANDIDATE_COUNT, 1.0);
         in_msgs[WEST].resize(CANDIDATE_COUNT, 1.0);
-
     }
 
     void ProcessMsgFromNeighbor(int from, vector<double> msg) {

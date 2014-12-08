@@ -26,7 +26,7 @@ using namespace std;
 #define WEST  2
 #define EAST  3
 
-const double SIGMA = 0.1; // Determined via trial and error, may need to adjust this more
+const double SIGMA = 255; // Determined via trial and error, may need to adjust this more
 const double TOL = .00001; //Tolerance for convergence test
 
 
