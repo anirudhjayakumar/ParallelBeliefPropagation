@@ -10,6 +10,9 @@ from PIL import Image
 def contrast_normalize(m):
     avg = np.average(m)
     m = m - avg
+    m[np.where(m>255)] = 255
+    m[np.where(m<0)] = 0
+
     return m
 
 
