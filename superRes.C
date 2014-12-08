@@ -476,7 +476,7 @@ private:
             patchIdtoDistMap.push_back(pair<PatchID,double>(myCandidates[i],dist));
         }
         sort(patchIdtoDistMap.begin(), patchIdtoDistMap.end(), [](const pair<int,int> &left, const pair<int,int> &right) {
-                return left.second < right.second;});
+                return left.second > right.second;});
         myCandidates.clear();
         for (int i=0;i<CANDIDATE_COUNT;++i)
         {
