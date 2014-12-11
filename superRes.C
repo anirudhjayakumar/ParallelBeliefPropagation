@@ -225,7 +225,7 @@ public:
         CandidateList *msg = new CandidateList();
         for (int i = 0; i < SEARCH_COUNT; i++) {
             int idx = topK[i].first;
-            msg->ids[i]=idx;
+            msg->ids[i]=idx+nDBSearchStartIndex;
         }
         callBack_.send(msg);
 
