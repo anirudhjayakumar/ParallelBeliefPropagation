@@ -8,6 +8,13 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import matplotlib.cm as cm
 
+
+def contrast_denormalize(m, m2):
+    avg = np.average(m)
+    m2 = m2 + avg
+    return m2
+
+
 def process_output(infile, imgfile):
     '''
     Transforms the output of the Charm++ code back
@@ -43,17 +50,27 @@ def process_output(infile, imgfile):
             col = int(nums[1])
             data = np.array(nums[2:]).reshape((bdim, bdim))
 
-            mat2[row*sdim:(row+1)*sdim, col*sdim:(col+1)*sdim] = data[1:-1, 1:-1]
+            srow = row*sdim
+            erow = (row+1)*sdim
+            scol = col*sdim
+            ecol = (col+1)*sdim
+
+            mat2[srow:erow, scol:ecol] = data[1:-1, 1:-1]
+            mat2[srow:erow, scol:ecol] = contrast_denormalize(np.copy(mat[srow:erow, scol:ecol]), np.copy(mat2[srow:erow, scol:ecol]))
 
     plt.figure()
-    plt.imshow(mat, cmap=cm.Greys_r)
+    plt.imshow(mat, cmap=cm.Greys_r, interpolation='none')
     plt.title('Before')
 
     mat = mat + mat2
 
     plt.figure()
-    plt.imshow(mat, cmap=cm.Greys_r)
+    plt.imshow(mat, cmap=cm.Greys_r, interpolation='none')
     plt.title('After')
+
+    plt.figure()
+    plt.imshow(mat2, cmap=cm.Greys_r, interpolation='none')
+    plt.title('Patches')
     plt.show()
     
     return mat

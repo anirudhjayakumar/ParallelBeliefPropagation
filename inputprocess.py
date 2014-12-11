@@ -7,6 +7,15 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 from PIL import Image
 
+def contrast_normalize(m):
+    avg = np.average(m)
+    m = m - avg
+    m[np.where(m>255)] = 255
+    m[np.where(m<0)] = 0
+
+    return m
+
+
 def blockshaped(arr, nrows, ncols):
     """
     Return an array of shape (n, nrows, ncols) where
@@ -40,6 +49,8 @@ def process_input(infile, outfile):
     endy = -(mat.shape[1] % N) + mat.shape[1]
     mat = mat[:endx, :endy]
     blocks = blockshaped(mat, M, N)
+    for i in range(len(blocks)):
+        blocks[i] = contrast_normalize(np.copy(blocks[i]))
 
     #Contrast normalize the image somewhere
 
@@ -57,8 +68,8 @@ def process_input(infile, outfile):
 
 
 def main():
-    inname = 'small_input/lenna_small.jpg'
-    outname = 'inputblocks.txt'
+    inname = 'small_input/input_600_450.jpg'
+    outname = 'inputblocks_600_450.txt'
     process_input(inname, outname)
     
 
