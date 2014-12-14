@@ -7,6 +7,7 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 from PIL import Image
 import matplotlib.cm as cm
+import sys
 
 
 def contrast_denormalize(m, m2):
@@ -77,7 +78,7 @@ def process_output(infile, imgfile):
 
 
 def main():
-    inname = 'small_input/outputblocks.txt'
+    inname = sys.argv[1]
     imgname = 'small_input/lenna_small.jpg'
     process_output(inname, imgname)
     

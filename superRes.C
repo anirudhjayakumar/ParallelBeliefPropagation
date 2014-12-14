@@ -7,12 +7,29 @@
 
 
 /*readonly*/ CProxy_Main mainProxy;
-/*readonly*/ CProxy_PatchArray arrayProxy;
 /*readonly*/ CProxy_DBNode dbProxy;
-/*readonly*/ int arrayXDim;
-/*readonly*/ int arrayYDim;
 /*readonly*/ int nodeCount;
 
+CkReduction::reducerType customReducerType;
+CkReductionMsg *customReduction(int nMsg, CkReductionMsg **msgs)
+{
+    double ret[2] = {0.0, 0.0};
+    for (int i = 0; i < nMsg; ++i) {
+        // Sanity check
+        CkAssert(msgs[i]->getSize() == 2*sizeof(double));
+
+        // Extract this message's data
+        double *m = (double *) msgs[i]->getData();
+        ret[0] = m[0];
+        ret[1] = max(ret[1], m[1]);
+    }
+
+    return CkReductionMsg::buildNew(2*sizeof(double), ret);
+}
+
+void registerCustomReduction() {
+    customReducerType = CkReduction::addReducer(customReduction);
+}
 
 class CandidateList: public CMessage_CandidateList
 {
@@ -36,6 +53,32 @@ public:
     {
         return nDBSearchStartIndex;
     }
+
+    static vector< vector<Patch> > ProcessImages(const string &sImageFolderPath, vector<int> &dimXs, vector<int> &dimYs) {
+        vector< vector<Patch> > imgs;
+
+        vector<string> sFiles;
+        if (GetFilesFromDir(sImageFolderPath,sFiles) == FAIL)
+        {
+            CkExit();
+        }
+        dimXs.resize(sFiles.size(), 0);
+        dimYs.resize(sFiles.size(), 0);
+
+        int i = 0;
+        for (vector<string>::iterator itr = sFiles.begin(); itr != sFiles.end(); ++itr)
+        {
+            if (*itr == "." || *itr == "..") continue;
+            string sFilePath = sImageFolderPath + "/" + itr->c_str();
+            std::cout << "sFilePath = " << sFilePath << std::endl;
+
+            imgs.push_back(ProcessImage(sFilePath, &dimXs[i], &dimYs[i]));
+            i++;
+        }
+
+        return imgs;
+    }
+
     static vector<Patch> ProcessImage(const string &sImagePath, int *dimX, int *dimY)
     {
         ifstream imageFile;
@@ -266,8 +309,10 @@ private:
     Patch myPatch;
     ImageDB *DB;
     int iter,recv_count;
+    int arrayXDim, arrayYDim;
+    int my_img_idx;
 public:
-    PatchArray(vector<Patch> img) {
+    PatchArray(vector<Patch> img, int i, int dimX, int dimY) : my_img_idx(i), arrayXDim(dimX), arrayYDim(dimY) {
         __sdag_init();
 
         i_index = thisIndex.x;
@@ -473,7 +518,9 @@ public:
         }
         /*Compute norm of belief, contribute to reduction to main chare*/
         mynorm = sqrt(mynorm);
-        contribute(sizeof(double), &mynorm, CkReduction::max_double, CkCallback(CkReductionTarget(Main, CheckConverged), mainProxy));
+        // contribute(sizeof(double), &mynorm, CkReduction::max_double, CkCallback(CkReductionTarget(Main, CheckConverged), mainProxy));
+        double data[2] = {(double) my_img_idx, mynorm};
+        contribute(2*sizeof(double), data, customReducerType, CkCallback(CkIndex_Main::CheckConverged(NULL), mainProxy));
     }
 
     double computeBelief(int index) {
@@ -485,6 +532,7 @@ public:
     }
 
     void GetFinalPatch() {
+        CkPrintf("GetFinalPatch from idx %d\n", my_img_idx);
         patch_t data;
         data.i = thisIndex.x;
         data.j = thisIndex.y;
@@ -492,7 +540,8 @@ public:
         int max_index = max_element(beliefs.begin(),beliefs.end()) - beliefs.begin();
         // get db index for the corresponding max_index
         data.id = myCandidates[max_index];
-        contribute(sizeof(patch_t), &data, CkReduction::concat, CkCallback(CkIndex_Main::RecvFinalPatch(NULL), mainProxy));
+        contribute(sizeof(patch_t), &data, CkReduction::concat, CkCallback(CkIndex_Main::RecvFinalPatch(NULL), mainProxy), my_img_idx);
+        CkPrintf("GetFinalPatch from idx %d done\n", my_img_idx);
     }
 
 private:
@@ -576,68 +625,82 @@ private:
 };
 
 class Main: public CBase_Main {
+    Main_SDAG_CODE;
+
 private:
-    string sOutputImagePath;
+    string sOutputImageFolderPath;
     double dbStartTime;
+    vector<CProxy_PatchArray> arrayProxys;
+    vector<int> conv_count;
+    vector<int> arrayXDims, arrayYDims;
+    int num_images;
+
 public:
     Main(CkArgMsg *m) {
+        __sdag_init();
+
         // Print usage details
         if (m->argc != 4)
         {
             CkPrintf("Usage: ./charmrun +p4 ./superRes <db folder path> <input image path> <output image path>");
             CkExit();
         }
-        
+
         mainProxy = thisProxy;
         nodeCount = CkNumNodes();
         // Get the training set directory
         const string sDBFolderPath = m->argv[1];
         // Get the input image path
-        const string sInputImagePath = m->argv[2];
+        const string sInputFolderPath = m->argv[2];
         // Get the output image path
-        sOutputImagePath = m->argv[3];
+        sOutputImageFolderPath = m->argv[3];
 
         // Construct node group
         dbProxy = CProxy_DBNode::ckNew();
         dbStartTime = CkWallTimer();
         dbProxy.FillDB(sDBFolderPath);
 
-        // Construct patcharray
-        vector<Patch> img = DBNode::ProcessImage(sInputImagePath, &arrayXDim, &arrayYDim);
-
-        // Construct patcharray
-        CkArrayOptions opts(arrayXDim, arrayYDim);
-        arrayProxy = CProxy_PatchArray::ckNew(img, opts);
-    }
-
-
-    void CheckConverged(double norm) {
-        if (norm < TOL) {
-            CkPrintf("Convergence test: Pass\n");
-            arrayProxy.GetFinalPatch();
-        } else {
-            CkPrintf("Convergence test: Fail\n");
-            arrayProxy.Run();
+        vector< vector<Patch> > imgs = DBNode::ProcessImages(sInputFolderPath, arrayXDims, arrayYDims);
+        num_images = imgs.size();
+        CkPrintf("Loaded %d images\n", num_images);
+        conv_count.resize(num_images, 0);
+        for (int i = 0; i < num_images; ++i) {
+            CkPrintf("image %d has dimensions (%d,%d)\n", i, arrayXDims[i], arrayYDims[i]);
+            // Construct patcharray
+            CkArrayOptions opts(arrayXDims[i], arrayYDims[i]);
+            arrayProxys.push_back(CProxy_PatchArray::ckNew(imgs[i], i, arrayXDims[i], arrayYDims[i], opts));
         }
+
+        thisProxy.WaitForFinalPatches();
     }
 
-    void RecvFinalPatch(CkReductionMsg *msg) {
-        patch_t *p = (patch_t*)msg->getData();
-        int num_elements = msg->getSize() / sizeof(patch_t);
+    void CheckConverged(CkReductionMsg *msg) {
+        double *m = (double *) msg->getData();
+        int idx = (int) m[0];
+        double norm = m[1];
+        conv_count[idx]++;
 
-        ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
-        WriteFinalPatches(sOutputImagePath, DB, p, num_elements);
-        CkExit();
+        if (norm < TOL || conv_count[idx] > ITER_MAX) {
+            CkPrintf("[%d] Convergence test at iter %d: Pass (%e) \n", idx, conv_count[idx], norm);
+            arrayProxys[idx].GetFinalPatch();
+        } else {
+            CkPrintf("[%d] Convergence test at iter %d: Fail (%e) \n", idx, conv_count[idx], norm);
+            arrayProxys[idx].Run();
+        }
+
+        delete msg;
     }
 
     void DB_Populated()
     {
         CkPrintf("Database populated in %f seconds\n",CkWallTimer() - dbStartTime);
-        arrayProxy.Setup();
+        for (int i = 0; i < num_images; ++i) {
+            arrayProxys[i].Setup();
+        }
     }
 };
 
-void WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements)
+void WriteFinalPatches(const string &sOutputImagePath, ImageDB *db, patch_t *p, int num_elements, int arrayXDim, int arrayYDim)
 {
     ofstream imageFile;
     imageFile.open(sOutputImagePath.c_str());

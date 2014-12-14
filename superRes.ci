@@ -2,10 +2,7 @@ mainmodule SuperResolution {
 include "pup_stl.h";
 
 readonly CProxy_Main mainProxy;
-readonly CProxy_PatchArray arrayProxy; 
 readonly CProxy_DBNode dbProxy;
-readonly int arrayXDim;
-readonly int arrayYDim;
 readonly int nodeCount;
 
 message CandidateList;
@@ -20,17 +17,33 @@ nodegroup DBNode {
 
 mainchare Main {
   entry Main(CkArgMsg *m);
-  entry [reductiontarget] void CheckConverged(double norm);
+  entry [reductiontarget] void CheckConverged(CkReductionMsg *msg);
 
   entry [reductiontarget] void DB_Populated();
   /*
   Recv final patch and create the hiRes image
   */
-  entry [reductiontarget] void RecvFinalPatch(CkReductionMsg *msg);
+  entry void RecvFinalPatch(CkReductionMsg *msg);
+
+  entry void WaitForFinalPatches() {
+    forall [block] (1:num_images, 1) {
+      when RecvFinalPatch(CkReductionMsg *msg) serial {
+        patch_t *p = (patch_t*) msg->getData();
+        int num_elements = msg->getSize() / sizeof(patch_t);
+        int idx = msg->getUserFlag();
+        CkPrintf("RecvFinalPatch from idx %d\n", idx);
+
+        string sFilePath = sOutputImageFolderPath + "/" + std::to_string(idx) + ".txt";
+        ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
+        WriteFinalPatches(sFilePath, DB, p, num_elements, arrayXDims[idx], arrayYDims[idx]);
+      }
+    }
+    serial { CkExit(); }
+  };
 };
 
 array [2D] PatchArray {
-  entry PatchArray(vector<Patch>); //call setup 
+  entry PatchArray(vector<Patch>, int idx, int arrayXDim, int arrayYDim); //call setup 
 
   entry void RecvCandidatesFromNeighbors(int from, vector<PatchID> patches); 
   entry void RecvMessageFromNeighbor(int itr,int from,vector<double> msg);
@@ -39,7 +52,7 @@ array [2D] PatchArray {
   entry void Setup() {
     serial "local search and remote requests" {
       SetupPatch(); //finds the candidate patches and send request for remote search    
-      CkPrintf("[%d,%d]Waiting to recieve remote search results\n",thisIndex.x,thisIndex.y);
+      CkPrintf("[%d,%d]Waiting to receive remote search results\n",thisIndex.x,thisIndex.y);
     }
     for(recv_count = 0; recv_count < nodeCount -1;++recv_count)
     {
@@ -131,4 +144,6 @@ array [2D] PatchArray {
     }
   }; 
  };
+
+  initnode void registerCustomReduction(); 
 };

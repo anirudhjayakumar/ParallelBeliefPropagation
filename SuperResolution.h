@@ -26,8 +26,9 @@ using namespace std;
 #define WEST  2
 #define EAST  3
 
-const double SIGMA = 255; // Determined via trial and error, may need to adjust this more
-const double TOL = 1e-24; //Tolerance for convergence test
+const double SIGMA = 255;   // Determined via trial and error, may need to adjust this more
+const double TOL = 1e-22;   //Tolerance for convergence test
+const double ITER_MAX = 10; //Tolerance for convergence test
 
 
 //typedefs 
