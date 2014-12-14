@@ -1,5 +1,7 @@
-CHARMC=/home/ralfgunter/uiuc/curr/cs598lvk/charm/bin/charmc $(OPTS)
-OPTS = -I/home/ralfgunter/uiuc/curr/cs598lvk/LSHBOX/include -std=c++11
+CHARMC=~/charmsmp/net-darwin-x86_64-smp/bin/charmc $(OPTS)
+#CHARMC=~/charm/net-darwin-x86_64/bin/charmc $(OPTS)
+OPTS=-ILSHBOX/include -std=c++11
+
 TESTOPTS = ++local
  
 OBJS = superRes.o
@@ -26,4 +28,4 @@ superRes.o: superRes.C SuperResolution.decl.h
 	$(CHARMC) -c -g superRes.C
  
 test: all
-	./charmrun superRes +p4
+	./charmrun +p4 +ppn4 ++local ./superRes small_input/db/ small_input/inputblocks.txt small_input/outputblocks.txt
