@@ -32,6 +32,10 @@ public:
     {
     }
 
+    int GetStartIndex()
+    {
+        return nDBSearchStartIndex;
+    }
     static vector<Patch> ProcessImage(const string &sImagePath, int *dimX, int *dimY)
     {
         ifstream imageFile;
@@ -225,7 +229,7 @@ public:
         CandidateList *msg = new CandidateList();
         for (int i = 0; i < SEARCH_COUNT; i++) {
             int idx = topK[i].first;
-            msg->ids[i]=idx;
+            msg->ids[i]=idx+nDBSearchStartIndex;
         }
         callBack_.send(msg);
 
@@ -314,10 +318,10 @@ public:
         std::vector<std::pair<unsigned, float> > topK = scanner.topk().getTopk();
 
         DB = dbProxy.ckLocalBranch()->GetImageDB();
-
+        int nDBStartIndex =  dbProxy.ckLocalBranch()->GetStartIndex();
         for (int i = 0; i < SEARCH_COUNT; i++) {
             int idx = topK[i].first;
-            myCandidates.push_back(idx);
+            myCandidates.push_back(idx+nDBStartIndex);
         }
 
     }

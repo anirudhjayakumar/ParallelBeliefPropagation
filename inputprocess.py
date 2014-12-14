@@ -68,8 +68,8 @@ def process_input(infile, outfile):
 
 
 def main():
-    inname = 'small_input/lenna_small.jpg'
-    outname = 'inputblocks.txt'
+    inname = 'small_input/input_600_450.jpg'
+    outname = 'inputblocks_600_450.txt'
     process_input(inname, outname)
     
 
