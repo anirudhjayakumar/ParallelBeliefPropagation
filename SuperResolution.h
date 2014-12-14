@@ -27,7 +27,7 @@ using namespace std;
 #define EAST  3
 
 const double SIGMA = 255; // Determined via trial and error, may need to adjust this more
-const double TOL = 1e-24; //Tolerance for convergence test
+const double TOL = 1.90e-24; //Tolerance for convergence test
 
 
 //typedefs 

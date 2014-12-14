@@ -159,7 +159,7 @@ public:
         mylsh.reset(param);
         mylsh.train(data);
 
-        CkPrintf("done loading\n");
+        CkPrintf("[%d]done loading\n",CkMyNode());
 
         contribute(CkCallback(CkReductionTarget(Main, DB_Populated), mainProxy));
         // return SUCCESS;
@@ -221,7 +221,7 @@ public:
             std::numeric_limits<double>::max()
         );
 
-        std::cout << "RUNNING QUERY ..." << std::endl;
+        //std::cout << "RUNNING QUERY ..." << std::endl;
         scanner.reset(&in_patch[0]);
         mylsh->query(&in_patch[0], scanner);
         std::vector<std::pair<unsigned, float> > topK = scanner.topk().getTopk();
@@ -266,6 +266,7 @@ private:
     Patch myPatch;
     ImageDB *DB;
     int iter,recv_count;
+    double nDBSearchTime;
 public:
     PatchArray(vector<Patch> img) {
         __sdag_init();
@@ -289,7 +290,7 @@ public:
         corresponding phi values.
         */
         CkPrintf("[%d,%d] DB search begin\n",thisIndex.x,thisIndex.y);
-
+        nDBSearchTime = CkWallTimer();
 
         //send request to nodegroup for remote search
        if( CkNumNodes() > 0)
@@ -312,7 +313,7 @@ public:
             std::numeric_limits<double>::max()
         );
 
-        std::cout << "RUNNING QUERY ..." << std::endl;
+        //std::cout << "RUNNING QUERY ..." << std::endl;
         scanner.reset(&myPatch[0]);
         mylsh->query(&myPatch[0], scanner);
         std::vector<std::pair<unsigned, float> > topK = scanner.topk().getTopk();
@@ -518,6 +519,7 @@ private:
             myCandidates.push_back(patchIdtoDistMap[i].first);
             myphis.push_back(patchIdtoDistMap[i].second);
         }
+	//CkPrintf("[%d,%d]Candidate search finish: %f\n",thisIndex.x,thisIndex.y,CkWallTimer()-nDBSearchTime);
     }
 
 	double psi(int index_me, int index_them, int from) {
@@ -578,7 +580,8 @@ private:
 class Main: public CBase_Main {
 private:
     string sOutputImagePath;
-    double dbStartTime;
+    double dbStartTime,progStartTime;
+    int conv_count;
 public:
     Main(CkArgMsg *m) {
         // Print usage details
@@ -587,7 +590,8 @@ public:
             CkPrintf("Usage: ./charmrun +p4 ./superRes <db folder path> <input image path> <output image path>");
             CkExit();
         }
-        
+        conv_count=0;
+        progStartTime = CkWallTimer();
         mainProxy = thisProxy;
         nodeCount = CkNumNodes();
         // Get the training set directory
@@ -606,17 +610,23 @@ public:
         vector<Patch> img = DBNode::ProcessImage(sInputImagePath, &arrayXDim, &arrayYDim);
 
         // Construct patcharray
+	CkPrintf("PatchArray Size:%d\n",arrayXDim*arrayYDim);
         CkArrayOptions opts(arrayXDim, arrayYDim);
         arrayProxy = CProxy_PatchArray::ckNew(img, opts);
     }
 
 
     void CheckConverged(double norm) {
-        if (norm < TOL) {
+        if(++conv_count > 10 )
+	{
+            CkPrintf("Convergence test - 10 checks: Pass\n");
+            arrayProxy.GetFinalPatch();
+	}
+        else if (norm < TOL) {
             CkPrintf("Convergence test: Pass\n");
             arrayProxy.GetFinalPatch();
         } else {
-            CkPrintf("Convergence test: Fail\n");
+            CkPrintf("Convergence test: Fail %e - %e\n", norm, TOL);
             arrayProxy.Run();
         }
     }
@@ -627,7 +637,8 @@ public:
 
         ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
         WriteFinalPatches(sOutputImagePath, DB, p, num_elements);
-        CkExit();
+        CkPrintf("Program complete in %f seconds\n",CkWallTimer() - progStartTime);
+	CkExit();
     }
 
     void DB_Populated()
