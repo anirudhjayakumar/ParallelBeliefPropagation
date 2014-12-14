@@ -307,10 +307,10 @@ private:
     std::vector<double> myphis;
     int i_index, j_index;
     Patch myPatch;
-    ImageDB *DB;
     int iter,recv_count;
     int arrayXDim, arrayYDim;
     int my_img_idx;
+
 public:
     PatchArray(vector<Patch> img, int i, int dimX, int dimY) : my_img_idx(i), arrayXDim(dimX), arrayYDim(dimY) {
         __sdag_init();
@@ -326,6 +326,29 @@ public:
         myPatch = img[i_index + arrayXDim*j_index];
     }
     PatchArray(CkMigrateMessage *msg) {}
+
+    void pup(PUP::er &p){
+      CBase_PatchArray::pup(p);
+      __sdag_pup(p);
+
+      p | myCandidates;
+      p | neighCandidates;
+      p | in_msgs;
+      p | out_msgs;
+
+      p | beliefs;
+      p | myphis;
+      p | i_index;
+      p | j_index;
+      p | myPatch;
+
+      p | iter;
+      p | recv_count;
+      p | arrayXDim;
+      p | arrayYDim;
+      p | my_img_idx;
+    }
+
 
     void SetupPatch()
     {
@@ -362,13 +385,12 @@ public:
         mylsh->query(&myPatch[0], scanner);
         std::vector<std::pair<unsigned, float> > topK = scanner.topk().getTopk();
 
-        DB = dbProxy.ckLocalBranch()->GetImageDB();
+        ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
         int nDBStartIndex =  dbProxy.ckLocalBranch()->GetStartIndex();
         for (int i = 0; i < SEARCH_COUNT; i++) {
             int idx = topK[i].first;
             myCandidates.push_back(idx+nDBStartIndex);
         }
-
     }
 
     void SendPatchesToNeighbors() {
@@ -552,6 +574,7 @@ private:
 
     void ConsolidateCandidates()
     {
+        ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
         vector<pair<PatchID, double> > patchIdtoDistMap;
         double dist = 0;
         for (int i=0;i<myCandidates.size();++i)
@@ -582,6 +605,7 @@ private:
         int n;
         double distance = 0;
 
+        ImageDB *DB = dbProxy.ckLocalBranch()->GetImageDB();
 		Patch xi = DB->GetHighResPatch(index_me);
 		Patch xj = DB->GetHighResPatch(index_them);
         n = sqrt(xi.size());
