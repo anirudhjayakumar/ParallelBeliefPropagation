@@ -1,5 +1,7 @@
 Parallel Belief Propagation Image Super-resolution
+
 Nathaniel Bowman, Erin Carrier, Ralf Gunter, Anirudh Jayakumar
+
 University of Illinois, Urbana-Champaign
 
 This project implements parallel belief propagation for image super-resolution using Charm++. In
